@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Art Gallery Claw Machine</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+</head>
+<body>
+    <div id="game-container">
+        <!-- Claw Machine Layers -->
+        <div id="claw-machine">
+            <img src="CLAW MACHINE/ClawMachine_04_Back.png" class="machine-layer" id="back-layer" alt="Back">
+
+            <!-- Game area where items and claw will be -->
+            <div id="game-area">
+                <canvas id="physics-canvas"></canvas>
+
+                <!-- Claw assembly (moves together horizontally) -->
+                <div id="claw-assembly">
+                    <img src="CLAW MACHINE/ClawMachine_02_ClawBase.png" id="claw-base" alt="Claw Base">
+                    <div id="claw-arm">
+                        <img src="CLAW MACHINE/ClawMachine_03_Claw.png" id="claw" alt="Claw">
+                    </div>
+                </div>
+
+                <!-- Items container -->
+                <div id="items-container"></div>
+            </div>
+
+            <img src="CLAW MACHINE/ClawMachine_01_Front.png" class="machine-layer" id="front-layer" alt="Front">
+        </div>
+
+        <!-- Controls UI -->
+        <div id="controls-ui">
+            <div class="control-text">← → Arrow Keys to Move | SPACE to Drop</div>
+            <div id="game-status">Ready to Play!</div>
+        </div>
+
+        <!-- Debug Menu -->
+        <div id="debug-menu">
+            <h3>Debug Controls (D to toggle)</h3>
+            <label>
+                Width %: <input type="range" id="width-slider" min="10" max="100" value="55" step="1">
+                <span id="width-value">55</span>%
+            </label>
+            <label>
+                Height %: <input type="range" id="height-slider" min="10" max="100" value="50" step="1">
+                <span id="height-value">50</span>%
+            </label>
+            <label>
+                Left Offset %: <input type="range" id="left-slider" min="0" max="50" value="22.5" step="0.5">
+                <span id="left-value">22.5</span>%
+            </label>
+            <label>
+                Top Offset %: <input type="range" id="top-slider" min="0" max="50" value="30" step="0.5">
+                <span id="top-value">30</span>%
+            </label>
+            <button id="show-bounds">Toggle Play Area Outline</button>
+            <div id="debug-info"></div>
+        </div>
+    </div>
+
+    <!-- Artwork Info Modal -->
+    <div id="artwork-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <img id="modal-artwork-image" src="" alt="Artwork">
+            <div id="modal-artwork-info">
+                <h2 id="modal-artist-name"></h2>
+                <h3 id="modal-exhibition-title"></h3>
+                <p id="modal-exhibition-details"></p>
+                <div id="modal-exhibition-text"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
