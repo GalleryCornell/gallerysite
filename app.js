@@ -13,9 +13,20 @@ function App() {
     const [selectedEntry, setSelectedEntry] = useState(null);
     const [saving, setSaving] = useState(false);
     const [exhibitionMode, setExhibitionMode] = useState(false);
+    const [debugMode, setDebugMode] = useState(false);
     const [auctionActive, setAuctionActive] = useState(false);
     const [auctionBids, setAuctionBids] = useState([]);
     const [auctionSummary, setAuctionSummary] = useState(null);
+    const [galleryFunds, setGalleryFunds] = useState(() => {
+        const saved = localStorage.getItem('galleryFunds');
+        return saved ? parseInt(saved, 10) : 0;
+    });
+    const [artworkPrices, setArtworkPrices] = useState({});
+
+    // Save gallery funds to localStorage whenever it changes
+    React.useEffect(() => {
+        localStorage.setItem('galleryFunds', galleryFunds.toString());
+    }, [galleryFunds]);
 
     const critiqueTemplates = {
         titleTemplates: [
@@ -109,7 +120,7 @@ function App() {
     };
 
     useEffect(() => {
-        if (currentView === 'archive') {
+        if (currentView === 'archive' && !auctionSummary) {
             loadArchive();
         }
     }, [currentView]);
@@ -117,6 +128,23 @@ function App() {
     // Load archive on mount to show correct count
     useEffect(() => {
         loadArchive();
+    }, []);
+
+    // Check for saved auction summary on mount (in case of page reload)
+    useEffect(() => {
+        const savedSummary = localStorage.getItem('lastAuctionSummary');
+        if (savedSummary) {
+            try {
+                const summaryData = JSON.parse(savedSummary);
+                console.log('Found saved auction summary, restoring:', summaryData);
+                setAuctionSummary(summaryData);
+                setCurrentView('archive');
+                // Clear the saved summary so it doesn't show again
+                localStorage.removeItem('lastAuctionSummary');
+            } catch (error) {
+                console.error('Error parsing saved auction summary:', error);
+            }
+        }
     }, []);
 
     const loadArchive = async () => {
@@ -256,18 +284,28 @@ function App() {
 
     const startAuction = async () => {
         if (archive.length === 0) return;
-        
+
         setAuctionActive(true);
         setAuctionBids([]);
         setExhibitionMode(false); // Reset exhibition view
-        
-        // Generate random bid amounts
+
+        // Generate individual prices for each artwork
+        const prices = {};
+        let totalValue = 0;
+        archive.forEach(entry => {
+            const price = Math.floor(Math.random() * 150000) + 50000; // $50k - $200k
+            prices[entry.id] = price;
+            totalValue += price;
+        });
+        setArtworkPrices(prices);
+
+        // Generate random bid amounts for display
         const baseBid = 50000;
         const bidAmounts = [];
         for (let i = 0; i < 8; i++) {
             bidAmounts.push(baseBid + (i * 25000) + Math.floor(Math.random() * 15000));
         }
-        
+
         // Show bids sequentially
         for (let i = 0; i < bidAmounts.length; i++) {
             await new Promise(resolve => setTimeout(resolve, 600));
@@ -277,52 +315,95 @@ function App() {
                 timestamp: Date.now()
             }]);
         }
-        
+
         // Wait a moment then show SOLD
         await new Promise(resolve => setTimeout(resolve, 800));
-        
-        // Calculate total value
-        const finalPrice = bidAmounts[bidAmounts.length - 1];
+
+        // Calculate total
         const totalWorks = archive.length;
-        const totalValue = finalPrice * totalWorks;
-        
-        // Clear archive
+
+        // Clear archive locally immediately (don't wait for server)
+        setArchive([]);
+
+        // Clear archive on server
         try {
-            // Delete all entries
-            const response = await fetch(`${API_URL}/archive/clear`, {
+            await fetch(`${API_URL}/archive/clear`, {
                 method: 'DELETE'
             });
-            
-            if (response.ok) {
-                setArchive([]);
-            }
         } catch (error) {
             console.error('Error clearing archive:', error);
         }
-        
-        // Show summary
-        setAuctionSummary({
+
+        // Show summary - this should persist until user closes it
+        const summaryData = {
             works: totalWorks,
-            pricePerWork: finalPrice,
             totalValue: totalValue
-        });
-        
+        };
+
+        console.log('Setting auction summary:', summaryData);
+
+        // Persist summary to localStorage in case of page reload
+        localStorage.setItem('lastAuctionSummary', JSON.stringify(summaryData));
+
+        setAuctionSummary(summaryData);
+
+        // Update gallery funds
+        setGalleryFunds(prevFunds => prevFunds + totalValue);
+
+        // Clear artwork prices since archive is cleared
+        setArtworkPrices({});
+
         setAuctionActive(false);
+        console.log('Auction complete, summary should be visible now');
     };
 
     const closeAuctionSummary = () => {
+        console.log('Closing auction summary - user clicked button');
         setAuctionSummary(null);
         setAuctionBids([]);
+        // Keep user on archive page after closing summary
+        setCurrentView('archive');
     };
 
     return (
         <div>
             <header>
                 <div className="container">
-                    <h1 className="site-title" onClick={() => setCurrentView('upload')} style={{cursor: 'pointer'}}>
-                        The Faux Critic
-                    </h1>
-                    <p className="site-subtitle">Institutional Analysis Archive</p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div>
+                            <h1 className="site-title" onClick={() => setCurrentView('upload')} style={{cursor: 'pointer'}}>
+                                The Faux Critic
+                            </h1>
+                            <p className="site-subtitle">Institutional Analysis Archive</p>
+                        </div>
+                        {galleryFunds > 0 && (
+                            <div style={{
+                                background: '#ffff00',
+                                border: '3px solid #000',
+                                padding: '16px 24px',
+                                boxShadow: '4px 4px 0px rgba(0, 0, 0, 0.3)',
+                                marginTop: '8px'
+                            }}>
+                                <div style={{
+                                    fontSize: '12px',
+                                    fontWeight: '700',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '2px',
+                                    marginBottom: '4px'
+                                }}>
+                                    Gallery Funds
+                                </div>
+                                <div style={{
+                                    fontSize: '24px',
+                                    fontWeight: '900',
+                                    fontFamily: 'Arial Black, Helvetica, sans-serif',
+                                    color: '#ff0000'
+                                }}>
+                                    ${galleryFunds.toLocaleString()}
+                                </div>
+                            </div>
+                        )}
+                    </div>
                     <div className="nav-buttons">
                         <button 
                             className="nav-button"
@@ -389,18 +470,21 @@ function App() {
 
                 {currentView === 'archive' && (
                     <>
-                        <ArchiveView 
+                        <ArchiveView
                             archive={archive}
                             viewEntry={viewEntry}
                             exhibitionMode={exhibitionMode}
                             setExhibitionMode={setExhibitionMode}
+                            debugMode={debugMode}
+                            setDebugMode={setDebugMode}
                             startAuction={startAuction}
+                            artworkPrices={artworkPrices}
                         />
                         {auctionActive && (
                             <AuctionOverlay bids={auctionBids} />
                         )}
                         {auctionSummary && (
-                            <AuctionSummary 
+                            <AuctionSummary
                                 summary={auctionSummary}
                                 onClose={closeAuctionSummary}
                             />
@@ -504,27 +588,27 @@ function CritiqueView({ critique, imagePreview, resetAnalysis, saveToArchive, sa
     );
 }
 
-function ArchiveView({ archive, viewEntry, exhibitionMode, setExhibitionMode, startAuction }) {
+function ArchiveView({ archive, viewEntry, exhibitionMode, setExhibitionMode, debugMode, setDebugMode, startAuction, artworkPrices }) {
     return (
         <div style={{ padding: '60px 0' }}>
-            <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
+            <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
                 alignItems: 'center',
                 marginBottom: '40px',
                 flexWrap: 'wrap',
                 gap: '16px'
             }}>
-                <h2 style={{ 
-                    fontSize: '32px', 
-                    fontWeight: '900', 
+                <h2 style={{
+                    fontSize: '32px',
+                    fontWeight: '900',
                     textTransform: 'uppercase',
                     letterSpacing: '-1px',
                     margin: 0
                 }}>
                     Archive — {archive.length} Works
                 </h2>
-                
+
                 <div style={{ display: 'flex', gap: '16px' }}>
                     {archive.length > 0 && (
                         <>
@@ -547,6 +631,27 @@ function ArchiveView({ archive, viewEntry, exhibitionMode, setExhibitionMode, st
                             >
                                 {exhibitionMode ? 'Grid View' : 'Conduct Exhibition'}
                             </button>
+                            {exhibitionMode && (
+                                <button
+                                    onClick={() => setDebugMode(!debugMode)}
+                                    style={{
+                                        padding: '14px 28px',
+                                        border: '3px solid #000',
+                                        background: debugMode ? '#00ff00' : 'transparent',
+                                        color: debugMode ? '#000' : '#000',
+                                        fontWeight: '900',
+                                        textTransform: 'uppercase',
+                                        cursor: 'pointer',
+                                        fontSize: '14px',
+                                        letterSpacing: '2px',
+                                        fontFamily: 'Arial Black, Helvetica, sans-serif',
+                                        boxShadow: '4px 4px 0px rgba(0, 0, 0, 0.3)',
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    Debug Mode
+                                </button>
+                            )}
                             <button
                                 onClick={startAuction}
                                 style={{
@@ -582,7 +687,7 @@ function ArchiveView({ archive, viewEntry, exhibitionMode, setExhibitionMode, st
                     No entries yet. Be the first to contribute.
                 </p>
             ) : exhibitionMode ? (
-                <ExhibitionView archive={archive} viewEntry={viewEntry} />
+                <ExhibitionView archive={archive} viewEntry={viewEntry} debugMode={debugMode} />
             ) : (
                 <div className="archive-grid">
                     {archive.map((entry) => (
@@ -605,6 +710,17 @@ function ArchiveView({ archive, viewEntry, exhibitionMode, setExhibitionMode, st
                                 <p className="archive-item-year">
                                     {entry.critique.year}
                                 </p>
+                                {artworkPrices[entry.id] && (
+                                    <p style={{
+                                        fontSize: '18px',
+                                        fontWeight: '900',
+                                        color: '#ff0000',
+                                        marginTop: '8px',
+                                        fontFamily: 'Arial Black, Helvetica, sans-serif'
+                                    }}>
+                                        ${artworkPrices[entry.id].toLocaleString()}
+                                    </p>
+                                )}
                             </div>
                         </div>
                     ))}
@@ -614,7 +730,12 @@ function ArchiveView({ archive, viewEntry, exhibitionMode, setExhibitionMode, st
     );
 }
 
-function ExhibitionView({ archive, viewEntry }) {
+function ExhibitionView({ archive, viewEntry, debugMode }) {
+    // Position state for debug mode
+    const [leftWallPos, setLeftWallPos] = React.useState({ rotateY: -90, translateX: 150, translateY: -100, translateZ: 0 });
+    const [rightWallPos, setRightWallPos] = React.useState({ rotateX: -90, translateX: 0, translateY: 0, translateZ: 0 });
+    const [floorPos, setFloorPos] = React.useState({ rotateX: 0, translateX: 0, translateY: -100, translateZ: 100 });
+
     // Distribute artworks across multiple "rooms"
     const worksPerRoom = Math.ceil(archive.length / 4);
     const rooms = [
@@ -626,67 +747,146 @@ function ExhibitionView({ archive, viewEntry }) {
 
     const renderRoomArtworks = (roomWorks, roomOffset) => {
         if (!roomWorks || roomWorks.length === 0) return null;
-        
+
         return roomWorks.map((entry, index) => {
             const totalIndex = roomOffset + index;
             // Alternate between wall and floor placement
             const onFloor = index % 2 === 1;
-            
+
             if (onFloor) {
                 return (
-                    <div 
+                    <div
                         key={entry.id}
                         className="floor-artwork"
                         onClick={() => viewEntry(entry)}
-                        style={{ 
-                            animationDelay: `${totalIndex * 0.15}s`,
-                            left: `${80 + (index % 2) * 120}px`,
-                            top: `${80 + Math.floor(index / 4) * 120}px`
+                        style={{
+                            animationDelay: `${totalIndex * 0.15}s`
                         }}
                     >
                         <img src={entry.image} alt={entry.critique.title} />
                     </div>
                 );
             }
-            
+
             return null;
         });
     };
 
     const renderWallArtworks = (roomWorks, roomOffset, wallType) => {
         if (!roomWorks || roomWorks.length === 0) return null;
-        
+
         // Only show wall artworks (even indices)
         const wallWorks = roomWorks.filter((_, index) => index % 2 === 0);
-        
-        return wallWorks.slice(0, 2).map((entry, index) => {
-            const originalIndex = roomWorks.indexOf(entry);
-            const totalIndex = roomOffset + originalIndex;
-            
-            return (
-                <div 
-                    key={entry.id}
-                    className="wall-artwork"
-                    onClick={() => viewEntry(entry)}
-                    style={{ animationDelay: `${totalIndex * 0.15}s` }}
-                >
-                    <img src={entry.image} alt={entry.critique.title} />
-                </div>
-            );
-        });
+
+        // Distribute artworks between left and right walls
+        // Left wall gets first artwork (index 0), right wall gets second artwork (index 1)
+        const wallIndex = wallType === 'left' ? 0 : 1;
+        const artwork = wallWorks[wallIndex];
+
+        if (!artwork) return null;
+
+        const originalIndex = roomWorks.indexOf(artwork);
+        const totalIndex = roomOffset + originalIndex;
+
+        return (
+            <div
+                key={artwork.id}
+                className="wall-artwork"
+                onClick={() => viewEntry(artwork)}
+                style={{ animationDelay: `${totalIndex * 0.15}s` }}
+            >
+                <img src={artwork.image} alt={artwork.critique.title} />
+            </div>
+        );
+    };
+
+    const buildTransform = (pos) => {
+        let parts = [];
+        if (pos.rotateX !== undefined && pos.rotateX !== 0) parts.push(`rotateX(${pos.rotateX}deg)`);
+        if (pos.rotateY !== undefined && pos.rotateY !== 0) parts.push(`rotateY(${pos.rotateY}deg)`);
+        if (pos.rotateZ !== undefined && pos.rotateZ !== 0) parts.push(`rotateZ(${pos.rotateZ}deg)`);
+        if (pos.translateZ !== undefined && pos.translateZ !== 0) parts.push(`translateZ(${pos.translateZ}px)`);
+        if (pos.translateX !== undefined && pos.translateX !== 0) parts.push(`translateX(${pos.translateX}px)`);
+        if (pos.translateY !== undefined && pos.translateY !== 0) parts.push(`translateY(${pos.translateY}px)`);
+        return parts.join(' ');
     };
 
     return (
         <div className="exhibition-container">
+            {debugMode && (
+                <div style={{
+                    position: 'fixed',
+                    top: '100px',
+                    right: '20px',
+                    background: 'white',
+                    border: '3px solid black',
+                    padding: '20px',
+                    zIndex: 10000,
+                    maxHeight: '80vh',
+                    overflowY: 'auto',
+                    fontFamily: 'monospace',
+                    fontSize: '12px'
+                }}>
+                    <h3 style={{ margin: '0 0 15px 0', fontWeight: 'bold' }}>Debug Controls</h3>
+
+                    <div style={{ marginBottom: '15px', padding: '10px', background: 'rgba(255,0,0,0.1)' }}>
+                        <strong style={{ color: 'red' }}>LEFT WALL (Red)</strong>
+                        <div>rotateY: <input type="number" value={leftWallPos.rotateY} onChange={(e) => setLeftWallPos({...leftWallPos, rotateY: Number(e.target.value)})} style={{width: '60px'}} /></div>
+                        <div>translateX: <input type="number" value={leftWallPos.translateX} onChange={(e) => setLeftWallPos({...leftWallPos, translateX: Number(e.target.value)})} style={{width: '60px'}} /></div>
+                        <div>translateY: <input type="number" value={leftWallPos.translateY} onChange={(e) => setLeftWallPos({...leftWallPos, translateY: Number(e.target.value)})} style={{width: '60px'}} /></div>
+                        <div>translateZ: <input type="number" value={leftWallPos.translateZ} onChange={(e) => setLeftWallPos({...leftWallPos, translateZ: Number(e.target.value)})} style={{width: '60px'}} /></div>
+                    </div>
+
+                    <div style={{ marginBottom: '15px', padding: '10px', background: 'rgba(0,0,255,0.1)' }}>
+                        <strong style={{ color: 'blue' }}>RIGHT WALL (Blue)</strong>
+                        <div>rotateX: <input type="number" value={rightWallPos.rotateX} onChange={(e) => setRightWallPos({...rightWallPos, rotateX: Number(e.target.value)})} style={{width: '60px'}} /></div>
+                        <div>translateX: <input type="number" value={rightWallPos.translateX} onChange={(e) => setRightWallPos({...rightWallPos, translateX: Number(e.target.value)})} style={{width: '60px'}} /></div>
+                        <div>translateY: <input type="number" value={rightWallPos.translateY} onChange={(e) => setRightWallPos({...rightWallPos, translateY: Number(e.target.value)})} style={{width: '60px'}} /></div>
+                        <div>translateZ: <input type="number" value={rightWallPos.translateZ} onChange={(e) => setRightWallPos({...rightWallPos, translateZ: Number(e.target.value)})} style={{width: '60px'}} /></div>
+                    </div>
+
+                    <div style={{ marginBottom: '15px', padding: '10px', background: 'rgba(0,255,0,0.1)' }}>
+                        <strong style={{ color: 'green' }}>FLOOR (Green)</strong>
+                        <div>rotateX: <input type="number" value={floorPos.rotateX} onChange={(e) => setFloorPos({...floorPos, rotateX: Number(e.target.value)})} style={{width: '60px'}} /></div>
+                        <div>translateX: <input type="number" value={floorPos.translateX} onChange={(e) => setFloorPos({...floorPos, translateX: Number(e.target.value)})} style={{width: '60px'}} /></div>
+                        <div>translateY: <input type="number" value={floorPos.translateY} onChange={(e) => setFloorPos({...floorPos, translateY: Number(e.target.value)})} style={{width: '60px'}} /></div>
+                        <div>translateZ: <input type="number" value={floorPos.translateZ} onChange={(e) => setFloorPos({...floorPos, translateZ: Number(e.target.value)})} style={{width: '60px'}} /></div>
+                    </div>
+
+                    <button onClick={() => {
+                        console.log('LEFT WALL:', buildTransform(leftWallPos));
+                        console.log('RIGHT WALL:', buildTransform(rightWallPos));
+                        console.log('FLOOR:', buildTransform(floorPos));
+                    }} style={{ padding: '10px', background: 'black', color: 'white', border: 'none', cursor: 'pointer' }}>
+                        Log Transforms to Console
+                    </button>
+                </div>
+            )}
+
             <div className="exhibition-isometric">
                 {/* Room 1 - Top Left */}
                 <div className="exhibition-room room-1">
                     <div className="room-walls">
-                        <div className="room-wall wall-back">
-                            {renderWallArtworks(rooms[0], 0, 'back')}
+                        <div className="room-wall wall-left" style={{
+                            ...(debugMode ? { border: '3px solid red', background: 'rgba(255,0,0,0.1)' } : {}),
+                            ...(debugMode ? { transform: buildTransform(leftWallPos) } : {})
+                        }}>
+                            {debugMode && <div style={{ position: 'absolute', top: '10px', left: '10px', background: 'red', color: 'white', padding: '5px', fontSize: '12px', fontWeight: 'bold', zIndex: 1000 }}>LEFT WALL</div>}
+                            {renderWallArtworks(rooms[0], 0, 'left')}
+                        </div>
+                        <div className="room-wall wall-right" style={{
+                            ...(debugMode ? { border: '3px solid blue', background: 'rgba(0,0,255,0.1)' } : {}),
+                            ...(debugMode ? { transform: buildTransform(rightWallPos) } : {})
+                        }}>
+                            {debugMode && <div style={{ position: 'absolute', top: '10px', left: '10px', background: 'blue', color: 'white', padding: '5px', fontSize: '12px', fontWeight: 'bold', zIndex: 1000 }}>RIGHT WALL</div>}
+                            {renderWallArtworks(rooms[0], 0, 'right')}
                         </div>
                     </div>
-                    <div className="room-floor">
+                    <div className="room-floor" style={{
+                        ...(debugMode ? { border: '3px solid green', background: 'rgba(0,255,0,0.1)' } : {}),
+                        ...(debugMode ? { transform: buildTransform(floorPos) } : {})
+                    }}>
+                        {debugMode && <div style={{ position: 'absolute', top: '10px', left: '10px', background: 'green', color: 'white', padding: '5px', fontSize: '12px', fontWeight: 'bold', zIndex: 1000 }}>FLOOR</div>}
                         {renderRoomArtworks(rooms[0], 0)}
                     </div>
                 </div>
@@ -694,8 +894,11 @@ function ExhibitionView({ archive, viewEntry }) {
                 {/* Room 2 - Top Right */}
                 <div className="exhibition-room room-2">
                     <div className="room-walls">
-                        <div className="room-wall wall-back">
-                            {renderWallArtworks(rooms[1], worksPerRoom, 'back')}
+                        <div className="room-wall wall-left">
+                            {renderWallArtworks(rooms[1], worksPerRoom, 'left')}
+                        </div>
+                        <div className="room-wall wall-right">
+                            {renderWallArtworks(rooms[1], worksPerRoom, 'right')}
                         </div>
                     </div>
                     <div className="room-floor">
@@ -706,8 +909,11 @@ function ExhibitionView({ archive, viewEntry }) {
                 {/* Room 3 - Bottom Left */}
                 <div className="exhibition-room room-3">
                     <div className="room-walls">
-                        <div className="room-wall wall-back">
-                            {renderWallArtworks(rooms[2], worksPerRoom * 2, 'back')}
+                        <div className="room-wall wall-left">
+                            {renderWallArtworks(rooms[2], worksPerRoom * 2, 'left')}
+                        </div>
+                        <div className="room-wall wall-right">
+                            {renderWallArtworks(rooms[2], worksPerRoom * 2, 'right')}
                         </div>
                     </div>
                     <div className="room-floor">
@@ -718,20 +924,17 @@ function ExhibitionView({ archive, viewEntry }) {
                 {/* Room 4 - Bottom Right */}
                 <div className="exhibition-room room-4">
                     <div className="room-walls">
-                        <div className="room-wall wall-back">
-                            {renderWallArtworks(rooms[3], worksPerRoom * 3, 'back')}
+                        <div className="room-wall wall-left">
+                            {renderWallArtworks(rooms[3], worksPerRoom * 3, 'left')}
+                        </div>
+                        <div className="room-wall wall-right">
+                            {renderWallArtworks(rooms[3], worksPerRoom * 3, 'right')}
                         </div>
                     </div>
                     <div className="room-floor">
                         {renderRoomArtworks(rooms[3], worksPerRoom * 3)}
                     </div>
                 </div>
-
-                {/* Connecting corridors */}
-                <div className="corridor horizontal-corridor-1"></div>
-                <div className="corridor horizontal-corridor-2"></div>
-                <div className="corridor vertical-corridor-1"></div>
-                <div className="corridor vertical-corridor-2"></div>
             </div>
         </div>
     );
@@ -840,7 +1043,7 @@ function AuctionSummary({ summary, onClose }) {
                 }}>
                     Collection Sold
                 </h2>
-                
+
                 <div style={{
                     marginBottom: '30px',
                     fontSize: '24px',
@@ -848,23 +1051,20 @@ function AuctionSummary({ summary, onClose }) {
                     lineHeight: '1.8'
                 }}>
                     <p style={{ marginBottom: '16px' }}>
-                        <span style={{ color: '#666' }}>Total Works:</span> {summary.works}
-                    </p>
-                    <p style={{ marginBottom: '16px' }}>
-                        <span style={{ color: '#666' }}>Final Price Per Work:</span> ${summary.pricePerWork.toLocaleString()}
+                        <span style={{ color: '#666' }}>Total Works Sold:</span> {summary.works}
                     </p>
                     <p style={{
-                        fontSize: '36px',
+                        fontSize: '42px',
                         color: '#ff0000',
                         fontWeight: '900',
                         marginTop: '24px',
                         paddingTop: '24px',
                         borderTop: '3px solid #000'
                     }}>
-                        Total Value: ${summary.totalValue.toLocaleString()}
+                        Total: ${summary.totalValue.toLocaleString()}
                     </p>
                 </div>
-                
+
                 <div style={{
                     background: '#ffff00',
                     padding: '20px',
@@ -877,11 +1077,11 @@ function AuctionSummary({ summary, onClose }) {
                         lineHeight: '1.6',
                         textAlign: 'center'
                     }}>
-                        Your collection has been acquired by an anonymous collector. The archive has been cleared. 
+                        Your collection has been acquired by an anonymous collector. The archive has been cleared.
                         All institutional legitimacy has been successfully liquidated.
                     </p>
                 </div>
-                
+
                 <button
                     onClick={onClose}
                     style={{

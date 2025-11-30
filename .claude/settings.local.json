@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(npm start)",
+      "Bash(node -c:*)",
+      "Bash(powershell:*)",
+      "Bash(archive.json)"
     ],
     "deny": [],
     "ask": []
