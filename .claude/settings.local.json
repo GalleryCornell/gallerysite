@@ -5,7 +5,9 @@
       "Bash(npm start)",
       "Bash(node -c:*)",
       "Bash(powershell:*)",
-      "Bash(archive.json)"
+      "Bash(archive.json)",
+      "Bash(npm install:*)",
+      "Bash(test:*)"
     ],
     "deny": [],
     "ask": []
