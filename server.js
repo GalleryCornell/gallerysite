@@ -91,7 +91,7 @@ app.post('/api/archive', async (req, res) => {
                 critique.artist,
                 critique.year,
                 critique.medium,
-                critique.essay,
+                critique.critique, // Fixed: use critique.critique instead of critique.essay
                 JSON.stringify(critique.provenance)
             ]
         );
