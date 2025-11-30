@@ -10,7 +10,7 @@ cloudinary.config({
 
 // Create PostgreSQL connection pool
 const pool = new Pool({
-    connectionString: process.env.POSTGRES_URL,
+    connectionString: process.env.DATABASE_URL || process.env.POSTGRES_URL,
     ssl: { rejectUnauthorized: false }
 });
 
