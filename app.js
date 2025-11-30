@@ -1,6 +1,6 @@
 const { useState, useEffect } = React;
 
-const API_URL = 'https://gallerysite-silk.vercel.app/api';
+const API_URL = 'https://gallerysite-production.up.railway.app/api';
 
 function App() {
     const [currentView, setCurrentView] = useState('upload');
