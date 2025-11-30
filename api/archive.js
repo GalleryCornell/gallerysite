@@ -52,6 +52,21 @@ module.exports = async (req, res) => {
     }
 
     try {
+        // Ensure table exists
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS artworks (
+                id SERIAL PRIMARY KEY,
+                timestamp TIMESTAMP DEFAULT NOW(),
+                image_url TEXT NOT NULL,
+                title TEXT NOT NULL,
+                artist TEXT NOT NULL,
+                year INTEGER NOT NULL,
+                medium TEXT NOT NULL,
+                essay TEXT NOT NULL,
+                provenance JSONB NOT NULL
+            );
+        `);
+
         // GET - Retrieve all artworks
         if (req.method === 'GET') {
             const result = await pool.query(
