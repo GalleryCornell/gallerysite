@@ -1,7 +1,17 @@
 {
   "permissions": {
     "allow": [
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(npm start)",
+      "Bash(node -c:*)",
+      "Bash(powershell:*)",
+      "Bash(archive.json)",
+      "Bash(npm install:*)",
+      "Bash(test:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(vercel env ls:*)"
     ],
     "deny": [],
     "ask": []
