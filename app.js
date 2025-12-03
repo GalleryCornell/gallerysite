@@ -1281,14 +1281,74 @@ function AuctionSummary({ results, closeSummary }) {
 }
 
 function GalleryWallView({ walls, openArtMarket, viewEntry, selectedForAuction, toggleSelectForAuction, openPurchasedArtActions }) {
+    // Artwork slot positions extracted from Gallery Iso Art Only Layer 1 & 2 SVG files
+    // ViewBox: 1814x1006 for both layers
+    // Each slot position is calculated from the polygon points in percentage
+
+    // Layer 1: 8 artwork slots (indices 0-7)
+    const layer1Slots = [
+        // Slot 0: points="835.9 570.2 986.22 483.03 986.22 298.86 835.9 386.02"
+        // Bottom-left → Top-right → Top-left → Bottom-right (Left-leaning)
+        { left: '46.07%', top: '29.67%', width: '8.29%', height: '26.97%', clipPath: 'polygon(0% 100%, 100% 67.92%, 100% 0%, 0% 32.08%)', transform: 'skewY(-30deg)' },
+
+        // Slot 1: points="1016.16 466.86 1166.48 379.69 1166.48 195.52 1016.16 282.68"
+        { left: '56.02%', top: '19.43%', width: '8.29%', height: '26.97%', clipPath: 'polygon(0% 100%, 100% 67.92%, 100% 0%, 0% 32.08%)', transform: 'skewY(-30deg)' },
+
+        // Slot 2: points="1387.62 461.78 1237.3 374.61 1237.3 190.44 1387.62 277.6"
+        // Right-leaning: Bottom-right → Top-left → Top-right → Bottom-left
+        { left: '68.20%', top: '18.93%', width: '8.29%', height: '26.97%', clipPath: 'polygon(100% 100%, 0% 67.92%, 0% 0%, 100% 32.08%)', transform: 'skewY(30deg)' },
+
+        // Slot 3: points="1562.96 560.88 1412.64 473.72 1412.64 289.54 1562.96 376.71"
+        { left: '77.87%', top: '28.78%', width: '8.29%', height: '26.97%', clipPath: 'polygon(100% 100%, 0% 67.92%, 0% 0%, 100% 32.08%)', transform: 'skewY(30deg)' },
+
+        // Slot 4: points="1738.3 659.99 1587.98 572.82 1587.98 388.65 1738.3 475.81"
+        { left: '87.54%', top: '38.64%', width: '8.29%', height: '26.98%', clipPath: 'polygon(100% 100%, 0% 67.92%, 0% 0%, 100% 32.08%)', transform: 'skewY(30deg)' },
+
+        // Slot 5: points="406.73 379.61 256.4 292.45 256.4 108.27 406.73 195.44"
+        { left: '14.14%', top: '10.76%', width: '8.29%', height: '26.97%', clipPath: 'polygon(100% 100%, 0% 67.92%, 0% 0%, 100% 32.08%)', transform: 'skewY(30deg)' },
+
+        // Slot 6: points="582.07 478.72 431.75 391.55 431.75 207.38 582.07 294.54"
+        { left: '23.80%', top: '20.62%', width: '8.29%', height: '26.97%', clipPath: 'polygon(100% 100%, 0% 67.92%, 0% 0%, 100% 32.08%)', transform: 'skewY(30deg)' },
+
+        // Slot 7: points="757.41 577.82 607.09 490.66 607.09 306.48 757.41 393.65"
+        { left: '33.47%', top: '30.47%', width: '8.29%', height: '26.97%', clipPath: 'polygon(100% 100%, 0% 67.92%, 0% 0%, 100% 32.08%)', transform: 'skewY(30deg)' }
+    ];
+
+    // Layer 2: 3 artwork slots (indices 8-10)
+    const layer2Slots = [
+        // Slot 8: points="363.36 845.69 513.68 758.53 513.68 574.35 363.36 661.52"
+        { left: '20.03%', top: '57.12%', width: '8.29%', height: '26.97%', clipPath: 'polygon(0% 100%, 100% 67.92%, 100% 0%, 0% 32.08%)', transform: 'skewY(-30deg)' },
+
+        // Slot 9: points="106.08 619.59 256.4 532.42 256.4 348.24 106.08 435.41"
+        { left: '5.85%', top: '34.62%', width: '8.29%', height: '26.97%', clipPath: 'polygon(0% 100%, 100% 67.92%, 100% 0%, 0% 32.08%)', transform: 'skewY(-30deg)' },
+
+        // Slot 10: points="1418.72 779.05 1268.4 691.88 1268.4 507.71 1418.72 594.87"
+        { left: '69.91%', top: '50.47%', width: '8.29%', height: '26.97%', clipPath: 'polygon(100% 100%, 0% 67.92%, 0% 0%, 100% 32.08%)', transform: 'skewY(30deg)' }
+    ];
+
+    const artworkSlots = [...layer1Slots, ...layer2Slots];
+
     const renderArtwork = (wall, index) => {
+        const slot = artworkSlots[index];
+        if (!slot) return null;
+
         if (!wall) {
             return (
-                <div 
-                    className="perspective-empty-slot"
+                <div
+                    key={index}
+                    className="iso-artwork-slot"
+                    style={{
+                        left: slot.left,
+                        top: slot.top,
+                        width: slot.width,
+                        height: slot.height,
+                        clipPath: slot.clipPath
+                    }}
                     onClick={() => openArtMarket(index)}
                 >
-                    <span className="plus-icon">+</span>
+                    <div className="iso-empty-slot">
+                        <span className="plus-icon">+</span>
+                    </div>
                 </div>
             );
         }
@@ -1300,11 +1360,24 @@ function GalleryWallView({ walls, openArtMarket, viewEntry, selectedForAuction, 
         const isSelected = isArchive && selectedForAuction && selectedForAuction.includes(wall.id);
 
         return (
-            <div 
-                className="perspective-artwork"
-                style={{ position: 'relative' }}
+            <div
+                key={index}
+                className="iso-artwork-slot"
+                style={{
+                    left: slot.left,
+                    top: slot.top,
+                    width: slot.width,
+                    height: slot.height,
+                    clipPath: slot.clipPath
+                }}
+                onClick={() => {
+                    if (isArchive) {
+                        viewEntry(wall.content);
+                    } else if (isPurchased) {
+                        openPurchasedArtActions(wall, index);
+                    }
+                }}
             >
-                {/* Checkbox for archive items */}
                 {isArchive && (
                     <input
                         type="checkbox"
@@ -1317,30 +1390,12 @@ function GalleryWallView({ walls, openArtMarket, viewEntry, selectedForAuction, 
                         onClick={(e) => e.stopPropagation()}
                     />
                 )}
-                
-                <div
-                    onClick={() => {
-                        if (isArchive) {
-                            viewEntry(wall.content);
-                        } else if (isPurchased) {
-                            openPurchasedArtActions(wall, index);
-                        }
-                    }}
-                    style={{ 
-                        cursor: 'pointer',
-                        width: '100%',
-                        height: '100%'
-                    }}
-                >
-                    <img 
+
+                <div className="iso-artwork-container" style={{ transform: slot.transform }}>
+                    <img
                         src={imageUrl}
                         alt={title}
-                        style={{ 
-                            width: '100%', 
-                            height: '100%', 
-                            display: 'block',
-                            objectFit: 'cover'
-                        }}
+                        className="iso-artwork-image"
                         onError={(e) => {
                             console.error('Image load error for:', title, imageUrl);
                             e.target.style.backgroundColor = '#f0f0f0';
@@ -1357,35 +1412,31 @@ function GalleryWallView({ walls, openArtMarket, viewEntry, selectedForAuction, 
     return (
         <div className="perspective-gallery">
             <div className="perspective-room">
-                {/* Left Wall */}
-                <div className="perspective-wall left-wall">
-                    {[0, 1, 2].map(index => (
-                        <div key={index} className="perspective-slot left-slot">
-                            {renderArtwork(walls[index], index)}
-                        </div>
-                    ))}
+                {/* Layer 1: Background walls with 8 artwork slots */}
+                <img
+                    src="Gallery Assets/Gallery Iso Image Layer 1.svg"
+                    alt="Gallery walls layer 1"
+                    className="gallery-background-svg"
+                    style={{ zIndex: 1 }}
+                />
+
+                {/* Layer 1 artwork (slots 0-7) */}
+                <div style={{ position: 'absolute', width: '100%', height: '100%', zIndex: 2 }}>
+                    {walls.slice(0, 8).map((wall, index) => renderArtwork(wall, index))}
                 </div>
 
-                {/* Back Wall */}
-                <div className="perspective-wall back-wall">
-                    {[3, 4, 5, 6].map(index => (
-                        <div key={index} className="perspective-slot back-slot">
-                            {renderArtwork(walls[index], index)}
-                        </div>
-                    ))}
-                </div>
+                {/* Layer 2: Foreground walls with 3 artwork slots */}
+                <img
+                    src="Gallery Assets/Gallery Iso Image Layer 2.svg"
+                    alt="Gallery walls layer 2"
+                    className="gallery-background-svg"
+                    style={{ zIndex: 3 }}
+                />
 
-                {/* Right Wall */}
-                <div className="perspective-wall right-wall">
-                    {[7, 8, 9].map(index => (
-                        <div key={index} className="perspective-slot right-slot">
-                            {renderArtwork(walls[index], index)}
-                        </div>
-                    ))}
+                {/* Layer 2 artwork (slots 8-10) */}
+                <div style={{ position: 'absolute', width: '100%', height: '100%', zIndex: 4 }}>
+                    {walls.slice(8, 11).map((wall, index) => renderArtwork(wall, index + 8))}
                 </div>
-
-                {/* Floor */}
-                <div className="perspective-floor"></div>
             </div>
         </div>
     );

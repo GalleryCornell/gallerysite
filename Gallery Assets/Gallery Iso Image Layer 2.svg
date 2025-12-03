@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="a" data-name="Drawing" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1814 1006">
+  <defs>
+    <style>
+      .j {
+        fill: #f7f7f7;
+        filter: url(#h);
+      }
+
+      .k {
+        filter: url(#d);
+      }
+
+      .k, .l {
+        fill: #e0e0e0;
+      }
+
+      .l {
+        filter: url(#f);
+      }
+    </style>
+    <filter id="d" data-name="drop-shadow-1" x="261" y="468" width="341" height="538" filterUnits="userSpaceOnUse">
+      <feOffset dx="0" dy="33"/>
+      <feGaussianBlur result="e" stdDeviation="16"/>
+      <feFlood flood-color="#000" flood-opacity=".18"/>
+      <feComposite in2="e" operator="in"/>
+      <feComposite in="SourceGraphic"/>
+    </filter>
+    <filter id="f" data-name="drop-shadow-2" x="0" y="241" width="341" height="538" filterUnits="userSpaceOnUse">
+      <feOffset dx="0" dy="33"/>
+      <feGaussianBlur result="g" stdDeviation="16"/>
+      <feFlood flood-color="#000" flood-opacity=".18"/>
+      <feComposite in2="g" operator="in"/>
+      <feComposite in="SourceGraphic"/>
+    </filter>
+    <filter id="h" data-name="drop-shadow-3" x="1118" y="371" width="471" height="611" filterUnits="userSpaceOnUse">
+      <feOffset dx="0" dy="33"/>
+      <feGaussianBlur result="i" stdDeviation="16"/>
+      <feFlood flood-color="#000" flood-opacity=".18"/>
+      <feComposite in2="i" operator="in"/>
+      <feComposite in="SourceGraphic"/>
+    </filter>
+  </defs>
+  <g id="b" data-name="Layer 2">
+    <g id="c" data-name="Layer 5 copy">
+      <polygon class="k" points="309.77 924.27 553.72 782.81 553.72 483.92 309.77 625.37 309.77 924.27"/>
+      <polygon class="l" points="48.36 697.26 292.32 555.8 292.32 256.9 48.36 398.36 48.36 697.26"/>
+      <polygon class="j" points="1540.32 900.54 1166.48 685.11 1166.48 386.21 1540.32 601.65 1540.32 900.54"/>
+    </g>
+  </g>
+</svg>

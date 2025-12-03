@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="a" data-name="Drawing" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1814 1006">
+  <defs>
+    <style>
+      .d {
+        fill: #5971b6;
+      }
+    </style>
+  </defs>
+  <g id="b" data-name="Layer 2">
+    <g id="c" data-name="Layer 6 copy">
+      <polygon class="d" points="363.36 845.69 513.68 758.53 513.68 574.35 363.36 661.52 363.36 845.69"/>
+      <polygon class="d" points="106.08 619.59 256.4 532.42 256.4 348.24 106.08 435.41 106.08 619.59"/>
+      <polygon class="d" points="1418.72 779.05 1268.4 691.88 1268.4 507.71 1418.72 594.87 1418.72 779.05"/>
+    </g>
+  </g>
+</svg>

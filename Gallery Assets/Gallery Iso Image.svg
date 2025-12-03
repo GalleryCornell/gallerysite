@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="a" data-name="Drawing" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1920 1080">
+  <defs>
+    <style>
+      .o {
+        filter: url(#d);
+      }
+
+      .o, .p, .q {
+        fill: #f7f7f7;
+      }
+
+      .r {
+        filter: url(#i);
+      }
+
+      .r, .s, .t {
+        fill: #e0e0e0;
+      }
+
+      .s {
+        filter: url(#k);
+      }
+
+      .p {
+        filter: url(#m);
+      }
+    </style>
+    <filter id="d" data-name="drop-shadow-1" x="210" y="54" width="1626" height="796" filterUnits="userSpaceOnUse">
+      <feOffset dx="0" dy="33"/>
+      <feGaussianBlur result="e" stdDeviation="16"/>
+      <feFlood flood-color="#000" flood-opacity=".18"/>
+      <feComposite in2="e" operator="in"/>
+      <feComposite in="SourceGraphic"/>
+    </filter>
+    <filter id="i" data-name="drop-shadow-2" x="283" y="522" width="341" height="538" filterUnits="userSpaceOnUse">
+      <feOffset dx="0" dy="33"/>
+      <feGaussianBlur result="j" stdDeviation="16"/>
+      <feFlood flood-color="#000" flood-opacity=".18"/>
+      <feComposite in2="j" operator="in"/>
+      <feComposite in="SourceGraphic"/>
+    </filter>
+    <filter id="k" data-name="drop-shadow-3" x="22" y="295" width="341" height="538" filterUnits="userSpaceOnUse">
+      <feOffset dx="0" dy="33"/>
+      <feGaussianBlur result="l" stdDeviation="16"/>
+      <feFlood flood-color="#000" flood-opacity=".18"/>
+      <feComposite in2="l" operator="in"/>
+      <feComposite in="SourceGraphic"/>
+    </filter>
+    <filter id="m" data-name="drop-shadow-4" x="1140" y="425" width="471" height="611" filterUnits="userSpaceOnUse">
+      <feOffset dx="0" dy="33"/>
+      <feGaussianBlur result="n" stdDeviation="16"/>
+      <feFlood flood-color="#000" flood-opacity=".18"/>
+      <feComposite in2="n" operator="in"/>
+      <feComposite in="SourceGraphic"/>
+    </filter>
+  </defs>
+  <g id="b" data-name="Layer 1">
+    <g id="c" data-name="Layer 3 copy">
+      <polygon class="o" points="1787.07 469.67 1787.07 768.57 1232.53 447.25 1232.53 448.86 812.95 689.71 258.41 368.39 258.41 69.49 812.95 390.81 1232.53 149.96 1232.53 148.35 1787.07 469.67"/>
+    </g>
+    <g id="f" data-name="Layer 16">
+      <polygon class="q" points="812.95 689.71 258.41 368.39 258.41 69.49 812.95 390.81 812.95 689.71"/>
+      <polygon class="q" points="1787.07 768.57 1232.53 447.25 1232.53 148.35 1787.07 469.67 1787.07 768.57"/>
+      <polygon class="t" points="812.95 689.71 1232.53 448.86 1232.53 149.96 812.95 390.81 812.95 689.71"/>
+    </g>
+  </g>
+  <g id="g" data-name="Layer 2">
+    <g id="h" data-name="Layer 5 copy">
+      <polygon class="r" points="331.77 978.27 575.72 836.81 575.72 537.92 331.77 679.37 331.77 978.27"/>
+      <polygon class="s" points="70.36 751.26 314.32 609.8 314.32 310.9 70.36 452.36 70.36 751.26"/>
+      <polygon class="p" points="1562.32 954.54 1188.48 739.11 1188.48 440.21 1562.32 655.65 1562.32 954.54"/>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1716.71 914.33">
+  <defs>
+    <style>
+      .c {
+        fill: red;
+      }
+
+      .d {
+        fill: #ff0;
+      }
+    </style>
+  </defs>
+  <g id="a" data-name="Layer 3">
+    <polygon class="c" points="742.59 625.77 188.05 304.45 188.05 5.56 742.59 326.87 742.59 625.77"/>
+    <polygon class="c" points="1716.71 704.63 1162.16 383.31 1162.16 84.42 1716.71 405.73 1716.71 704.63"/>
+    <polygon class="d" points="742.59 625.77 1162.16 384.92 1162.16 86.03 742.59 326.87 742.59 625.77"/>
+    <polygon class="c" points="1491.95 890.61 1118.12 675.17 1118.12 376.27 1491.95 591.71 1491.95 890.61"/>
+  </g>
+  <g id="b" data-name="Layer 5">
+    <polygon class="d" points="261.4 914.33 505.36 772.88 505.36 473.98 261.4 615.44 261.4 914.33"/>
+    <polygon class="d" points="0 687.32 243.95 545.86 243.95 246.97 0 388.43 0 687.32"/>
+  </g>
+</svg>
