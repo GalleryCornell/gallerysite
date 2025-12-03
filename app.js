@@ -1,6 +1,6 @@
 const { useState, useEffect } = React;
 
-const API_URL = 'http://localhost:3000/api';
+const API_URL = 'https://gallerysite-production.up.railway.app/api';
 
 function App() {
     const [currentView, setCurrentView] = useState('upload');
@@ -12,10 +12,113 @@ function App() {
     const [archive, setArchive] = useState([]);
     const [selectedEntry, setSelectedEntry] = useState(null);
     const [saving, setSaving] = useState(false);
-    const [exhibitionMode, setExhibitionMode] = useState(false);
-    const [auctionActive, setAuctionActive] = useState(false);
-    const [auctionBids, setAuctionBids] = useState([]);
-    const [auctionSummary, setAuctionSummary] = useState(null);
+    
+    // Auction states - NEW USER-MEDIATED SYSTEM
+    const [selectedForAuction, setSelectedForAuction] = useState([]);
+    const [auctionSetup, setAuctionSetup] = useState(false);
+    const [auctionLive, setAuctionLive] = useState(false);
+    const [currentAuctionWork, setCurrentAuctionWork] = useState(null);
+    const [auctionIndex, setAuctionIndex] = useState(0);
+    const [currentBid, setCurrentBid] = useState(0);
+    const [bidHistory, setBidHistory] = useState([]);
+    const [startingPrices, setStartingPrices] = useState({});
+    const [auctionResults, setAuctionResults] = useState([]);
+    const [showSummary, setShowSummary] = useState(false);
+    const [autoBidInterval, setAutoBidInterval] = useState(null);
+    
+    // Gallery wall system
+    const [galleryView, setGalleryView] = useState(true); // Default to gallery view
+    const [galleryWalls, setGalleryWalls] = useState(() => {
+        const saved = localStorage.getItem('galleryWalls');
+        return saved ? JSON.parse(saved) : [];
+    });
+    const [showArtMarket, setShowArtMarket] = useState(false);
+    const [selectedWallSlot, setSelectedWallSlot] = useState(null);
+    const [showArtworkActions, setShowArtworkActions] = useState(false);
+    const [selectedPurchasedArt, setSelectedPurchasedArt] = useState(null);
+    
+    // Fake art pieces you can buy
+    const fakeArtPieces = [
+        { 
+            title: "Sunset Over Mountains", 
+            artist: "Generic Landscapes Inc.", 
+            price: 5000, 
+            image: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300'%3E%3Crect fill='%23ff6b6b' width='400' height='300'/%3E%3Crect fill='%23ffa500' x='0' y='200' width='400' height='100'/%3E%3Ccircle fill='%23ffeb3b' cx='100' cy='100' r='50'/%3E%3C/svg%3E"
+        },
+        { 
+            title: "Abstract Composition #42", 
+            artist: "AI Art Studio", 
+            price: 3000, 
+            image: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300'%3E%3Crect fill='%234ecdc4' width='400' height='300'/%3E%3Ccircle fill='%23ffe66d' cx='200' cy='150' r='80'/%3E%3Crect fill='%23ff6b6b' x='50' y='50' width='100' height='100' transform='rotate(45 100 100)'/%3E%3C/svg%3E"
+        },
+        { 
+            title: "Still Life with Fruit", 
+            artist: "Classical Reproductions", 
+            price: 4000, 
+            image: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300'%3E%3Crect fill='%23ffe66d' width='400' height='300'/%3E%3Cellipse fill='%23ff6347' cx='150' cy='150' rx='60' ry='70'/%3E%3Cellipse fill='%23ffa500' cx='250' cy='160' rx='50' ry='60'/%3E%3Crect fill='%238b4513' x='100' y='200' width='200' height='20'/%3E%3C/svg%3E"
+        },
+        { 
+            title: "Urban Street Scene", 
+            artist: "Stock Photo Gallery", 
+            price: 3500, 
+            image: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300'%3E%3Crect fill='%23a8e6cf' width='400' height='300'/%3E%3Crect fill='%23696969' x='50' y='100' width='80' height='150'/%3E%3Crect fill='%23696969' x='150' y='80' width='100' height='170'/%3E%3Crect fill='%23696969' x='270' y='120' width='80' height='130'/%3E%3Crect fill='%23333' x='0' y='250' width='400' height='50'/%3E%3C/svg%3E"
+        },
+        { 
+            title: "Portrait of Anonymous", 
+            artist: "Digital Art Collective", 
+            price: 6000, 
+            image: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300'%3E%3Crect fill='%23ff8b94' width='400' height='300'/%3E%3Cellipse fill='%23ffd3b6' cx='200' cy='130' rx='70' ry='90'/%3E%3Ccircle fill='%23333' cx='180' cy='120' r='8'/%3E%3Ccircle fill='%23333' cx='220' cy='120' r='8'/%3E%3Crect fill='%23ffa07a' x='150' y='200' width='100' height='80'/%3E%3C/svg%3E"
+        },
+        { 
+            title: "Geometric Patterns", 
+            artist: "Modern Design Co.", 
+            price: 2500, 
+            image: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300'%3E%3Crect fill='%23ffd3b6' width='400' height='300'/%3E%3Crect fill='%234ecdc4' x='50' y='50' width='100' height='100'/%3E%3Crect fill='%23ff6b6b' x='250' y='50' width='100' height='100'/%3E%3Crect fill='%23ffe66d' x='150' y='150' width='100' height='100'/%3E%3C/svg%3E"
+        },
+        { 
+            title: "Seascape at Dawn", 
+            artist: "Nature Prints Ltd.", 
+            price: 4500, 
+            image: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300'%3E%3Crect fill='%2387ceeb' width='400' height='200'/%3E%3Crect fill='%231e90ff' y='150' width='400' height='150'/%3E%3Ccircle fill='%23ffd700' cx='350' cy='50' r='40'/%3E%3Cpath fill='%23f0e68c' d='M 0 200 Q 100 180 200 200 T 400 200 L 400 300 L 0 300 Z'/%3E%3C/svg%3E"
+        },
+        { 
+            title: "Minimalist Study", 
+            artist: "Concept Art Group", 
+            price: 3000, 
+            image: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300'%3E%3Crect fill='%23f7f7f7' width='400' height='300'/%3E%3Cline x1='100' y1='50' x2='300' y2='50' stroke='%23333' stroke-width='4'/%3E%3Ccircle fill='none' stroke='%23333' stroke-width='3' cx='200' cy='150' r='60'/%3E%3Crect fill='%23333' x='180' y='220' width='40' height='40'/%3E%3C/svg%3E"
+        },
+    ];
+    
+    // Fake bidder names
+    const bidderNames = [
+        "Anonymous Collector",
+        "Margaux T.",
+        "Dr. K. Holmquist",
+        "Y. Benveniste Foundation",
+        "Private Swiss Buyer",
+        "Museum Acquisitions",
+        "L. Vermeer Trust",
+        "Institutional Buyer",
+        "D. Kostas Collection",
+        "Anonymous Phone Bidder",
+        "Online Bidder 47",
+        "Gallery Representative"
+    ];
+    
+    const [galleryFunds, setGalleryFunds] = useState(() => {
+        const saved = localStorage.getItem('galleryFunds');
+        return saved ? parseInt(saved, 10) : 0;
+    });
+
+    // Save gallery funds to localStorage whenever it changes
+    useEffect(() => {
+        localStorage.setItem('galleryFunds', galleryFunds.toString());
+    }, [galleryFunds]);
+
+    // Save gallery walls to localStorage
+    useEffect(() => {
+        localStorage.setItem('galleryWalls', JSON.stringify(galleryWalls));
+    }, [galleryWalls]);
 
     const critiqueTemplates = {
         titleTemplates: [
@@ -109,29 +212,269 @@ function App() {
     };
 
     useEffect(() => {
+        loadArchive();
+    }, []);
+
+    useEffect(() => {
         if (currentView === 'archive') {
             loadArchive();
         }
     }, [currentView]);
 
-    // Load archive on mount to show correct count
+    // Cleanup auto-bidding on unmount
     useEffect(() => {
-        loadArchive();
-    }, []);
+        return () => {
+            if (autoBidInterval) {
+                clearInterval(autoBidInterval);
+            }
+        };
+    }, [autoBidInterval]);
 
     const loadArchive = async () => {
         try {
             const response = await fetch(`${API_URL}/archive`);
             const data = await response.json();
             setArchive(data);
+            
+            // Sync gallery walls with archive - always show archive items
+            setGalleryWalls(prev => {
+                // Create a map of existing purchased items by index
+                const purchasedItems = {};
+                prev.forEach((wall, index) => {
+                    if (wall && wall.type === 'purchased') {
+                        purchasedItems[index] = wall;
+                    }
+                });
+                
+                // Start fresh with archive items
+                const newWalls = data.map(entry => ({
+                    id: entry.id,
+                    type: 'archive',
+                    content: entry
+                }));
+                
+                // Add back purchased items in remaining slots
+                const totalSlots = 10;
+                for (let i = newWalls.length; i < totalSlots; i++) {
+                    if (purchasedItems[i]) {
+                        newWalls[i] = purchasedItems[i];
+                    } else {
+                        newWalls[i] = null;
+                    }
+                }
+                
+                return newWalls;
+            });
         } catch (error) {
             console.error('Error loading archive:', error);
         }
     };
 
-    const generateRandomCritique = () => {
+    const openArtMarket = (slotIndex) => {
+        setSelectedWallSlot(slotIndex);
+        setShowArtMarket(true);
+    };
+
+    const calculateArtworkValue = (artPiece) => {
+        // Generate a resale value based on the artist's prestige
+        // More prestigious = higher markup
+        const prestigeMap = {
+            "Generic Landscapes Inc.": 1.2,
+            "AI Art Studio": 0.8,
+            "Classical Reproductions": 1.5,
+            "Stock Photo Gallery": 0.9,
+            "Digital Art Collective": 1.8,
+            "Modern Design Co.": 1.1,
+            "Nature Prints Ltd.": 1.3,
+            "Concept Art Group": 1.6,
+        };
+        
+        const prestigeMultiplier = prestigeMap[artPiece.artist] || 1.0;
+        const marketFluctuation = 0.9 + (Math.random() * 0.3); // 0.9 to 1.2
+        const resaleValue = Math.floor(artPiece.price * prestigeMultiplier * marketFluctuation);
+        
+        // Generate prestige description
+        let prestige = "emerging";
+        let exhibitions = "regional galleries";
+        
+        if (prestigeMultiplier >= 1.6) {
+            prestige = "highly regarded";
+            exhibitions = "major international institutions including Tate Modern and MoMA";
+        } else if (prestigeMultiplier >= 1.3) {
+            prestige = "established";
+            exhibitions = "prestigious galleries across Europe";
+        } else if (prestigeMultiplier >= 1.1) {
+            prestige = "mid-career";
+            exhibitions = "notable galleries and art fairs";
+        } else {
+            prestige = "emerging";
+            exhibitions = "local and regional venues";
+        }
+        
+        return {
+            value: resaleValue,
+            prestige: prestige,
+            exhibitions: exhibitions,
+            profit: resaleValue - artPiece.price
+        };
+    };
+
+    const openPurchasedArtActions = (wall, slotIndex) => {
+        const valuation = calculateArtworkValue(wall.content);
+        setSelectedPurchasedArt({
+            wall: wall,
+            slotIndex: slotIndex,
+            valuation: valuation
+        });
+        setShowArtworkActions(true);
+    };
+
+    const sellPurchasedArt = () => {
+        if (!selectedPurchasedArt) return;
+        
+        // Add resale value to funds
+        setGalleryFunds(prev => prev + selectedPurchasedArt.valuation.value);
+        
+        // Remove from gallery walls
+        setGalleryWalls(prev => {
+            const updated = [...prev];
+            updated[selectedPurchasedArt.slotIndex] = null;
+            return updated;
+        });
+        
+        setShowArtworkActions(false);
+        setSelectedPurchasedArt(null);
+    };
+
+    const swapPurchasedArt = () => {
+        if (!selectedPurchasedArt) return;
+        
+        // Open art market for the same slot
+        setShowArtworkActions(false);
+        setSelectedPurchasedArt(null);
+        setSelectedWallSlot(selectedPurchasedArt.slotIndex);
+        setShowArtMarket(true);
+    };
+
+    const purchaseFakeArt = (artPiece) => {
+        if (galleryFunds < artPiece.price) {
+            alert('Insufficient funds');
+            return;
+        }
+
+        // Deduct cost
+        setGalleryFunds(prev => prev - artPiece.price);
+
+        // Add to gallery wall
+        const newWall = {
+            id: Date.now().toString(),
+            type: 'purchased',
+            content: artPiece
+        };
+
+        setGalleryWalls(prev => {
+            const updated = [...prev];
+            updated[selectedWallSlot] = newWall;
+            return updated;
+        });
+
+        setShowArtMarket(false);
+        setSelectedWallSlot(null);
+    };
+
+    const generateRandomCritique = async (imageData) => {
         const year = 1960 + Math.floor(Math.random() * 64);
         
+        try {
+            // Call Claude API to analyze the image
+            const response = await fetch("https://api.anthropic.com/v1/messages", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    model: "claude-sonnet-4-20250514",
+                    max_tokens: 1000,
+                    messages: [
+                        {
+                            role: "user",
+                            content: [
+                                {
+                                    type: "image",
+                                    source: {
+                                        type: "base64",
+                                        media_type: "image/jpeg",
+                                        data: imageData.split(',')[1]
+                                    }
+                                },
+                                {
+                                    type: "text",
+                                    text: `You are an absurdist art critic writing institutional critique for "The Faux Critic" archive. Analyze this mundane image and generate pretentious art world descriptions.
+
+Return ONLY valid JSON in this exact format (no markdown, no backticks):
+{
+  "title": "a pretentious artwork title based on what you see",
+  "artist": "a made-up European artist name",
+  "medium": "describe the image content as if it were an artwork medium (e.g., 'Digital photograph on archival substrate', 'Inkjet print with found imagery')",
+  "label": "one sentence of absurdist institutional critique about this image",
+  "critique_hook": "describe what you actually see in the image in 1-2 sentences, written in dense academic language"
+}
+
+Make it satirical. The more mundane the image, the more pretentious the description.`
+                                }
+                            ]
+                        }
+                    ]
+                })
+            });
+
+            const data = await response.json();
+            const analysisText = data.content[0].text;
+            
+            // Parse the JSON response
+            let analysis;
+            try {
+                // Remove markdown code blocks if present
+                const cleanedText = analysisText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+                analysis = JSON.parse(cleanedText);
+            } catch (e) {
+                console.error('Failed to parse AI response:', analysisText);
+                // Fallback to random generation
+                return generateFallbackCritique(year);
+            }
+
+            // Use AI analysis for title, artist, medium, label
+            // But keep our template-based system for the long critique
+            const critiqueTemplate = critiqueTemplates.critiqueTemplates[Math.floor(Math.random() * critiqueTemplates.critiqueTemplates.length)];
+            const critique = critiqueTemplate
+                .replace(/{artist}/g, analysis.artist)
+                .replace(/{title}/g, analysis.title)
+                .replace(/{medium}/g, analysis.medium);
+            
+            // Insert the image-specific hook at the beginning
+            const critiqueWithHook = analysis.critique_hook + "\n\n" + critique;
+            
+            const exhibitions = critiqueTemplates.exhibitionTemplates[Math.floor(Math.random() * critiqueTemplates.exhibitionTemplates.length)];
+            const provenance = critiqueTemplates.provenanceTemplates[Math.floor(Math.random() * critiqueTemplates.provenanceTemplates.length)];
+            
+            return {
+                title: analysis.title,
+                artist: analysis.artist,
+                year: year.toString(),
+                medium: analysis.medium,
+                label: analysis.label,
+                critique: critiqueWithHook,
+                exhibitions,
+                provenance,
+            };
+        } catch (error) {
+            console.error('Error analyzing image:', error);
+            return generateFallbackCritique(year);
+        }
+    };
+
+    const generateFallbackCritique = (year) => {
+        // Original random generation as fallback
         const title = critiqueTemplates.titleTemplates[Math.floor(Math.random() * critiqueTemplates.titleTemplates.length)];
         const artist = critiqueTemplates.artistTemplates[Math.floor(Math.random() * critiqueTemplates.artistTemplates.length)];
         const medium = critiqueTemplates.mediumTemplates[Math.floor(Math.random() * critiqueTemplates.mediumTemplates.length)];
@@ -155,27 +498,67 @@ function App() {
         };
     };
 
+    const compressImage = (file) => {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 1920;
+                    const MAX_HEIGHT = 1920;
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > MAX_WIDTH) {
+                            height *= MAX_WIDTH / width;
+                            width = MAX_WIDTH;
+                        }
+                    } else {
+                        if (height > MAX_HEIGHT) {
+                            width *= MAX_HEIGHT / height;
+                            height = MAX_HEIGHT;
+                        }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    canvas.toBlob((blob) => {
+                        resolve(blob);
+                    }, 'image/jpeg', 0.85);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    };
+
     const handleImageUpload = async (file) => {
         if (!file || !file.type.startsWith('image/')) {
             alert('Please upload an image file');
             return;
         }
 
+        const compressedBlob = await compressImage(file);
+        const compressedFile = new File([compressedBlob], file.name, { type: 'image/jpeg' });
+
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             setImagePreview(e.target.result);
-        };
-        reader.readAsDataURL(file);
+            setLoading(true);
+            setImage(compressedFile);
 
-        setLoading(true);
-        setImage(file);
-
-        setTimeout(() => {
-            const critiqueData = generateRandomCritique();
+            // Generate critique based on the actual image
+            const critiqueData = await generateRandomCritique(e.target.result);
             setCritique(critiqueData);
             setLoading(false);
             setCurrentView('critique');
-        }, 2000);
+        };
+        reader.readAsDataURL(compressedFile);
     };
 
     const saveToArchive = async () => {
@@ -198,13 +581,15 @@ function App() {
             const data = await response.json();
             
             if (data.success) {
-                alert('✓ Saved to archive!');
                 // Update archive count immediately
                 await loadArchive();
+                // Automatically go to archive in gallery view
+                setCurrentView('archive');
+                setGalleryView(true);
             }
         } catch (error) {
             console.error('Error saving to archive:', error);
-            alert('Failed to save. Make sure server is running (npm start)');
+            alert('Failed to save');
         } finally {
             setSaving(false);
         }
@@ -246,6 +631,8 @@ function App() {
 
     const viewArchive = () => {
         setCurrentView('archive');
+        setAuctionSetup(false);
+        setGalleryView(true); // Default to gallery view
         loadArchive();
     };
 
@@ -254,82 +641,194 @@ function App() {
         setCurrentView('entry');
     };
 
-    const startAuction = async () => {
-        if (archive.length === 0) return;
-        
-        setAuctionActive(true);
-        setAuctionBids([]);
-        setExhibitionMode(false); // Reset exhibition view
-        
-        // Generate random bid amounts
-        const baseBid = 50000;
-        const bidAmounts = [];
-        for (let i = 0; i < 8; i++) {
-            bidAmounts.push(baseBid + (i * 25000) + Math.floor(Math.random() * 15000));
-        }
-        
-        // Show bids sequentially
-        for (let i = 0; i < bidAmounts.length; i++) {
-            await new Promise(resolve => setTimeout(resolve, 600));
-            setAuctionBids(prev => [...prev, {
-                id: i,
-                amount: bidAmounts[i],
-                timestamp: Date.now()
-            }]);
-        }
-        
-        // Wait a moment then show SOLD
-        await new Promise(resolve => setTimeout(resolve, 800));
-        
-        // Calculate total value
-        const finalPrice = bidAmounts[bidAmounts.length - 1];
-        const totalWorks = archive.length;
-        const totalValue = finalPrice * totalWorks;
-        
-        // Clear archive
-        try {
-            // Delete all entries
-            const response = await fetch(`${API_URL}/archive/clear`, {
-                method: 'DELETE'
-            });
-            
-            if (response.ok) {
-                setArchive([]);
+    // NEW AUCTION FUNCTIONS
+    const toggleSelectForAuction = (entryId) => {
+        setSelectedForAuction(prev => {
+            if (prev.includes(entryId)) {
+                return prev.filter(id => id !== entryId);
+            } else {
+                return [...prev, entryId];
             }
-        } catch (error) {
-            console.error('Error clearing archive:', error);
-        }
-        
-        // Show summary
-        setAuctionSummary({
-            works: totalWorks,
-            pricePerWork: finalPrice,
-            totalValue: totalValue
         });
-        
-        setAuctionActive(false);
     };
 
-    const closeAuctionSummary = () => {
-        setAuctionSummary(null);
-        setAuctionBids([]);
+    const proceedToAuctionSetup = () => {
+        if (selectedForAuction.length === 0) {
+            alert('Please select at least one work');
+            return;
+        }
+        setAuctionSetup(true);
+        setExhibitionMode(false);
+        
+        // Initialize starting prices
+        const prices = {};
+        selectedForAuction.forEach(id => {
+            prices[id] = 1000;
+        });
+        setStartingPrices(prices);
+    };
+
+    const updateStartingPrice = (id, price) => {
+        setStartingPrices(prev => ({
+            ...prev,
+            [id]: parseInt(price) || 0
+        }));
+    };
+
+    const startAuction = () => {
+        const selectedWorks = archive.filter(entry => selectedForAuction.includes(entry.id));
+        setAuctionIndex(0);
+        setCurrentAuctionWork(selectedWorks[0]);
+        setCurrentBid(startingPrices[selectedWorks[0].id]);
+        setBidHistory([]);
+        setAuctionResults([]);
+        setAuctionLive(true);
+        setAuctionSetup(false);
+        
+        // Start automatic bidding
+        startAutoBidding(startingPrices[selectedWorks[0].id]);
+    };
+
+    const startAutoBidding = (startPrice) => {
+        // Clear any existing interval
+        if (autoBidInterval) {
+            clearInterval(autoBidInterval);
+        }
+        
+        // Create interval for automatic bids every 2-4 seconds
+        const interval = setInterval(() => {
+            const bidIncrement = Math.floor(Math.random() * 500) + 100; // $100-600 increment
+            const bidderName = bidderNames[Math.floor(Math.random() * bidderNames.length)];
+            
+            setBidHistory(prev => {
+                const lastBid = prev.length > 0 ? prev[0].amount : startPrice;
+                const newBid = {
+                    amount: lastBid + bidIncrement,
+                    bidder: bidderName,
+                    time: new Date().toLocaleTimeString(),
+                    timestamp: Date.now()
+                };
+                
+                setCurrentBid(newBid.amount);
+                return [newBid, ...prev];
+            });
+        }, Math.random() * 2000 + 2000); // Random interval 2-4 seconds
+        
+        setAutoBidInterval(interval);
+    };
+
+    const stopAutoBidding = () => {
+        if (autoBidInterval) {
+            clearInterval(autoBidInterval);
+            setAutoBidInterval(null);
+        }
+    };
+
+    const endCurrentAuction = () => {
+        stopAutoBidding();
+        
+        const result = {
+            work: currentAuctionWork,
+            finalBid: currentBid,
+            totalBids: bidHistory.length
+        };
+        
+        const newResults = [...auctionResults, result];
+        setAuctionResults(newResults);
+        
+        const selectedWorks = archive.filter(entry => selectedForAuction.includes(entry.id));
+        const nextIndex = auctionIndex + 1;
+        
+        if (nextIndex < selectedWorks.length) {
+            // Move to next work
+            setAuctionIndex(nextIndex);
+            setCurrentAuctionWork(selectedWorks[nextIndex]);
+            setCurrentBid(startingPrices[selectedWorks[nextIndex].id]);
+            setBidHistory([]);
+            
+            // Start bidding for next work
+            setTimeout(() => {
+                startAutoBidding(startingPrices[selectedWorks[nextIndex].id]);
+            }, 1000);
+        } else {
+            // All works done - show summary and delete from archive
+            setAuctionLive(false);
+            setShowSummary(true);
+        }
+    };
+
+    const closeSummary = async () => {
+        stopAutoBidding(); // Make sure auto-bidding is stopped
+        
+        // Remove sold works from archive on server
+        try {
+            for (const id of selectedForAuction) {
+                await fetch(`${API_URL}/archive/${id}`, {
+                    method: 'DELETE'
+                });
+            }
+            
+            // Reload archive which will auto-update gallery walls
+            await loadArchive();
+        } catch (error) {
+            console.error('Error removing sold works:', error);
+        }
+        
+        // Update gallery funds
+        const totalRevenue = auctionResults.reduce((sum, result) => sum + result.finalBid, 0);
+        setGalleryFunds(prevFunds => prevFunds + totalRevenue);
+        
+        setShowSummary(false);
+        setSelectedForAuction([]);
+        setAuctionResults([]);
+        setBidHistory([]);
+        setCurrentView('archive');
+        setGalleryView(true); // Always go to gallery view after auction
     };
 
     return (
         <div>
             <header>
                 <div className="container">
-                    <h1 className="site-title" onClick={() => setCurrentView('upload')} style={{cursor: 'pointer'}}>
-                        The Faux Critic
-                    </h1>
-                    <p className="site-subtitle">Institutional Analysis Archive</p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div>
+                            <h1 className="site-title" onClick={() => setCurrentView('upload')} style={{cursor: 'pointer'}}>
+                                The Faux Critic
+                            </h1>
+                            <p className="site-subtitle">Institutional Analysis Archive</p>
+                        </div>
+                        {galleryFunds > 0 && (
+                            <div style={{
+                                border: '1px solid #e0e0e0',
+                                padding: '12px 20px',
+                                background: '#f8f8f8'
+                            }}>
+                                <div style={{
+                                    fontSize: '10px',
+                                    fontWeight: '400',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '1px',
+                                    marginBottom: '6px',
+                                    color: '#666'
+                                }}>
+                                    Total Revenue
+                                </div>
+                                <div style={{
+                                    fontSize: '18px',
+                                    fontWeight: '400'
+                                }}>
+                                    ${galleryFunds.toLocaleString()}
+                                </div>
+                            </div>
+                        )}
+                    </div>
                     <div className="nav-buttons">
                         <button 
                             className="nav-button"
                             onClick={() => setCurrentView('upload')}
                             style={{
-                                background: currentView === 'upload' ? '#ff00ff' : 'transparent',
-                                color: currentView === 'upload' ? 'white' : '#000',
+                                background: currentView === 'upload' ? '#000' : 'transparent',
+                                color: currentView === 'upload' ? '#fff' : '#000',
                             }}
                         >
                             Submit
@@ -338,8 +837,8 @@ function App() {
                             className="nav-button"
                             onClick={viewArchive}
                             style={{
-                                background: currentView === 'archive' ? '#ff00ff' : 'transparent',
-                                color: currentView === 'archive' ? 'white' : '#000',
+                                background: currentView === 'archive' ? '#000' : 'transparent',
+                                color: currentView === 'archive' ? '#fff' : '#000',
                             }}
                         >
                             Archive ({archive.length})
@@ -357,9 +856,9 @@ function App() {
                         onDragLeave={handleDragLeave}
                         onDrop={handleDrop}
                     >
-                        <div className="upload-icon">⊕</div>
-                        <p className="upload-text">Submit Work for Analysis</p>
-                        <p className="upload-subtext">Drop image here or click to select</p>
+                        <div className="upload-icon">+</div>
+                        <p className="upload-text">Submit Work</p>
+                        <p className="upload-subtext">Click or drag image</p>
                         <input
                             id="fileInput"
                             type="file"
@@ -373,7 +872,7 @@ function App() {
                 {loading && (
                     <div className="loading-section">
                         <div className="loading-spinner"></div>
-                        <p className="loading-text">Conducting institutional analysis...</p>
+                        <p className="loading-text">Analyzing</p>
                     </div>
                 )}
 
@@ -387,25 +886,47 @@ function App() {
                     />
                 )}
 
-                {currentView === 'archive' && (
-                    <>
-                        <ArchiveView 
-                            archive={archive}
-                            viewEntry={viewEntry}
-                            exhibitionMode={exhibitionMode}
-                            setExhibitionMode={setExhibitionMode}
-                            startAuction={startAuction}
-                        />
-                        {auctionActive && (
-                            <AuctionOverlay bids={auctionBids} />
-                        )}
-                        {auctionSummary && (
-                            <AuctionSummary 
-                                summary={auctionSummary}
-                                onClose={closeAuctionSummary}
-                            />
-                        )}
-                    </>
+                {currentView === 'archive' && !auctionSetup && !auctionLive && (
+                    <ArchiveView 
+                        archive={archive}
+                        viewEntry={viewEntry}
+                        selectedForAuction={selectedForAuction}
+                        toggleSelectForAuction={toggleSelectForAuction}
+                        proceedToAuctionSetup={proceedToAuctionSetup}
+                        galleryView={galleryView}
+                        setGalleryView={setGalleryView}
+                        galleryWalls={galleryWalls}
+                        openArtMarket={openArtMarket}
+                        openPurchasedArtActions={openPurchasedArtActions}
+                    />
+                )}
+
+                {currentView === 'archive' && auctionSetup && (
+                    <AuctionSetup
+                        selectedWorks={archive.filter(entry => selectedForAuction.includes(entry.id))}
+                        startingPrices={startingPrices}
+                        updateStartingPrice={updateStartingPrice}
+                        startAuction={startAuction}
+                        cancel={() => setAuctionSetup(false)}
+                    />
+                )}
+
+                {auctionLive && (
+                    <LiveAuction
+                        currentWork={currentAuctionWork}
+                        currentBid={currentBid}
+                        bidHistory={bidHistory}
+                        endCurrentAuction={endCurrentAuction}
+                        auctionIndex={auctionIndex}
+                        totalWorks={selectedForAuction.length}
+                    />
+                )}
+
+                {showSummary && (
+                    <AuctionSummary
+                        results={auctionResults}
+                        closeSummary={closeSummary}
+                    />
                 )}
 
                 {currentView === 'entry' && selectedEntry && (
@@ -414,6 +935,27 @@ function App() {
                         imagePreview={selectedEntry.image}
                         resetAnalysis={() => setCurrentView('archive')}
                         isArchiveView={true}
+                    />
+                )}
+
+                {showArtMarket && (
+                    <ArtMarketModal
+                        fakeArtPieces={fakeArtPieces}
+                        galleryFunds={galleryFunds}
+                        purchaseFakeArt={purchaseFakeArt}
+                        onClose={() => setShowArtMarket(false)}
+                    />
+                )}
+
+                {showArtworkActions && selectedPurchasedArt && (
+                    <PurchasedArtActions
+                        artwork={selectedPurchasedArt}
+                        onSell={sellPurchasedArt}
+                        onSwap={swapPurchasedArt}
+                        onClose={() => {
+                            setShowArtworkActions(false);
+                            setSelectedPurchasedArt(null);
+                        }}
                     />
                 )}
             </main>
@@ -452,7 +994,7 @@ function CritiqueView({ critique, imagePreview, resetAnalysis, saveToArchive, sa
                 <h3 className="section-heading">Critical Analysis</h3>
                 <div className="critique-text">
                     {critique.critique.split('\n\n').map((paragraph, index) => (
-                        <p key={index} style={{ marginBottom: '24px' }}>
+                        <p key={index}>
                             {paragraph}
                         </p>
                     ))}
@@ -476,9 +1018,9 @@ function CritiqueView({ critique, imagePreview, resetAnalysis, saveToArchive, sa
 
                 <div className="qr-section">
                     <div className="qr-code">
-                        [QR CODE]
+                        QR
                     </div>
-                    <p className="qr-caption">Scan for additional documentation</p>
+                    <p className="qr-caption">Documentation</p>
                 </div>
             </div>
 
@@ -488,7 +1030,6 @@ function CritiqueView({ critique, imagePreview, resetAnalysis, saveToArchive, sa
                         className="new-analysis-button"
                         onClick={saveToArchive}
                         disabled={saving}
-                        style={{ marginRight: '20px' }}
                     >
                         {saving ? 'Saving...' : 'Add to Archive'}
                     </button>
@@ -497,75 +1038,39 @@ function CritiqueView({ critique, imagePreview, resetAnalysis, saveToArchive, sa
                     className="new-analysis-button"
                     onClick={resetAnalysis}
                 >
-                    {isArchiveView ? 'Back to Archive' : 'Submit New Work'}
+                    {isArchiveView ? 'Back' : 'New Submission'}
                 </button>
             </div>
         </div>
     );
 }
 
-function ArchiveView({ archive, viewEntry, exhibitionMode, setExhibitionMode, startAuction }) {
+function ArchiveView({ archive, viewEntry, selectedForAuction, toggleSelectForAuction, proceedToAuctionSetup, galleryView, setGalleryView, galleryWalls, openArtMarket, openPurchasedArtActions }) {
     return (
         <div style={{ padding: '60px 0' }}>
-            <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center',
-                marginBottom: '40px',
-                flexWrap: 'wrap',
-                gap: '16px'
-            }}>
-                <h2 style={{ 
-                    fontSize: '32px', 
-                    fontWeight: '900', 
-                    textTransform: 'uppercase',
-                    letterSpacing: '-1px',
-                    margin: 0
-                }}>
+            <div className="archive-header">
+                <h2 className="archive-title">
                     Archive — {archive.length} Works
                 </h2>
                 
-                <div style={{ display: 'flex', gap: '16px' }}>
+                <div className="archive-controls">
                     {archive.length > 0 && (
                         <>
                             <button
-                                onClick={() => setExhibitionMode(!exhibitionMode)}
-                                style={{
-                                    padding: '14px 28px',
-                                    border: '3px solid #000',
-                                    background: exhibitionMode ? '#ff00ff' : 'transparent',
-                                    color: exhibitionMode ? 'white' : '#000',
-                                    fontWeight: '900',
-                                    textTransform: 'uppercase',
-                                    cursor: 'pointer',
-                                    fontSize: '14px',
-                                    letterSpacing: '2px',
-                                    fontFamily: 'Arial Black, Helvetica, sans-serif',
-                                    boxShadow: '4px 4px 0px rgba(0, 0, 0, 0.3)',
-                                    transition: 'all 0.2s'
-                                }}
+                                className="nav-button"
+                                onClick={() => setGalleryView(!galleryView)}
                             >
-                                {exhibitionMode ? 'Grid View' : 'Conduct Exhibition'}
+                                {galleryView ? 'Grid View' : 'Gallery View'}
                             </button>
-                            <button
-                                onClick={startAuction}
-                                style={{
-                                    padding: '14px 28px',
-                                    border: '3px solid #000',
-                                    background: '#ff0000',
-                                    color: 'white',
-                                    fontWeight: '900',
-                                    textTransform: 'uppercase',
-                                    cursor: 'pointer',
-                                    fontSize: '14px',
-                                    letterSpacing: '2px',
-                                    fontFamily: 'Arial Black, Helvetica, sans-serif',
-                                    boxShadow: '4px 4px 0px rgba(0, 0, 0, 0.3)',
-                                    transition: 'all 0.2s'
-                                }}
-                            >
-                                Sell Collection
-                            </button>
+                            {selectedForAuction.length > 0 && (
+                                <button
+                                    className="nav-button"
+                                    onClick={proceedToAuctionSetup}
+                                    style={{ background: '#000', color: '#fff' }}
+                                >
+                                    List {selectedForAuction.length} Work{selectedForAuction.length !== 1 ? 's' : ''}
+                                </button>
+                            )}
                         </>
                     )}
                 </div>
@@ -573,27 +1078,40 @@ function ArchiveView({ archive, viewEntry, exhibitionMode, setExhibitionMode, st
             
             {archive.length === 0 ? (
                 <p style={{ 
-                    fontSize: '18px', 
-                    fontWeight: '700',
                     textAlign: 'center',
                     padding: '80px 0',
-                    color: '#666'
+                    color: '#666',
+                    fontSize: '13px'
                 }}>
-                    No entries yet. Be the first to contribute.
+                    No works in archive
                 </p>
-            ) : exhibitionMode ? (
-                <ExhibitionView archive={archive} viewEntry={viewEntry} />
+            ) : galleryView ? (
+                <GalleryWallView 
+                    walls={galleryWalls} 
+                    openArtMarket={openArtMarket}
+                    viewEntry={viewEntry}
+                    selectedForAuction={selectedForAuction}
+                    toggleSelectForAuction={toggleSelectForAuction}
+                    openPurchasedArtActions={openPurchasedArtActions}
+                />
             ) : (
                 <div className="archive-grid">
                     {archive.map((entry) => (
                         <div 
                             key={entry.id}
                             className="archive-item"
-                            onClick={() => viewEntry(entry)}
                         >
+                            <input
+                                type="checkbox"
+                                className="archive-item-checkbox"
+                                checked={selectedForAuction.includes(entry.id)}
+                                onChange={() => toggleSelectForAuction(entry.id)}
+                                onClick={(e) => e.stopPropagation()}
+                            />
                             <img 
                                 src={entry.image} 
                                 alt={entry.critique.title}
+                                onClick={() => viewEntry(entry)}
                             />
                             <div className="archive-item-info">
                                 <h3 className="archive-item-title">
@@ -614,292 +1132,467 @@ function ArchiveView({ archive, viewEntry, exhibitionMode, setExhibitionMode, st
     );
 }
 
-function ExhibitionView({ archive, viewEntry }) {
-    // Distribute artworks across multiple "rooms"
-    const worksPerRoom = Math.ceil(archive.length / 4);
-    const rooms = [
-        archive.slice(0, worksPerRoom),
-        archive.slice(worksPerRoom, worksPerRoom * 2),
-        archive.slice(worksPerRoom * 2, worksPerRoom * 3),
-        archive.slice(worksPerRoom * 3)
-    ];
-
-    const renderRoomArtworks = (roomWorks, roomOffset) => {
-        if (!roomWorks || roomWorks.length === 0) return null;
-        
-        return roomWorks.map((entry, index) => {
-            const totalIndex = roomOffset + index;
-            // Alternate between wall and floor placement
-            const onFloor = index % 2 === 1;
-            
-            if (onFloor) {
-                return (
-                    <div 
-                        key={entry.id}
-                        className="floor-artwork"
-                        onClick={() => viewEntry(entry)}
-                        style={{ 
-                            animationDelay: `${totalIndex * 0.15}s`,
-                            left: `${80 + (index % 2) * 120}px`,
-                            top: `${80 + Math.floor(index / 4) * 120}px`
-                        }}
-                    >
-                        <img src={entry.image} alt={entry.critique.title} />
-                    </div>
-                );
-            }
-            
-            return null;
-        });
-    };
-
-    const renderWallArtworks = (roomWorks, roomOffset, wallType) => {
-        if (!roomWorks || roomWorks.length === 0) return null;
-        
-        // Only show wall artworks (even indices)
-        const wallWorks = roomWorks.filter((_, index) => index % 2 === 0);
-        
-        return wallWorks.slice(0, 2).map((entry, index) => {
-            const originalIndex = roomWorks.indexOf(entry);
-            const totalIndex = roomOffset + originalIndex;
-            
-            return (
-                <div 
-                    key={entry.id}
-                    className="wall-artwork"
-                    onClick={() => viewEntry(entry)}
-                    style={{ animationDelay: `${totalIndex * 0.15}s` }}
-                >
-                    <img src={entry.image} alt={entry.critique.title} />
-                </div>
-            );
-        });
-    };
-
+function AuctionSetup({ selectedWorks, startingPrices, updateStartingPrice, startAuction, cancel }) {
     return (
-        <div className="exhibition-container">
-            <div className="exhibition-isometric">
-                {/* Room 1 - Top Left */}
-                <div className="exhibition-room room-1">
-                    <div className="room-walls">
-                        <div className="room-wall wall-back">
-                            {renderWallArtworks(rooms[0], 0, 'back')}
+        <div className="auction-setup">
+            <h2 className="auction-title">Configure Auction</h2>
+            
+            <div className="selected-works">
+                {selectedWorks.map((work) => (
+                    <div key={work.id} className="selected-work-item">
+                        <img src={work.image} alt={work.critique.title} />
+                        <div className="selected-work-info">
+                            <p style={{ fontSize: '14px', fontWeight: '400', marginBottom: '5px' }}>
+                                {work.critique.title}
+                            </p>
+                            <p style={{ fontSize: '12px', color: '#666', marginBottom: '15px' }}>
+                                {work.critique.artist}
+                            </p>
+                            <div className="starting-price-input">
+                                <label>Starting Price</label>
+                                <input
+                                    type="number"
+                                    value={startingPrices[work.id]}
+                                    onChange={(e) => updateStartingPrice(work.id, e.target.value)}
+                                    placeholder="Enter amount"
+                                />
+                            </div>
                         </div>
-                    </div>
-                    <div className="room-floor">
-                        {renderRoomArtworks(rooms[0], 0)}
-                    </div>
-                </div>
-
-                {/* Room 2 - Top Right */}
-                <div className="exhibition-room room-2">
-                    <div className="room-walls">
-                        <div className="room-wall wall-back">
-                            {renderWallArtworks(rooms[1], worksPerRoom, 'back')}
-                        </div>
-                    </div>
-                    <div className="room-floor">
-                        {renderRoomArtworks(rooms[1], worksPerRoom)}
-                    </div>
-                </div>
-
-                {/* Room 3 - Bottom Left */}
-                <div className="exhibition-room room-3">
-                    <div className="room-walls">
-                        <div className="room-wall wall-back">
-                            {renderWallArtworks(rooms[2], worksPerRoom * 2, 'back')}
-                        </div>
-                    </div>
-                    <div className="room-floor">
-                        {renderRoomArtworks(rooms[2], worksPerRoom * 2)}
-                    </div>
-                </div>
-
-                {/* Room 4 - Bottom Right */}
-                <div className="exhibition-room room-4">
-                    <div className="room-walls">
-                        <div className="room-wall wall-back">
-                            {renderWallArtworks(rooms[3], worksPerRoom * 3, 'back')}
-                        </div>
-                    </div>
-                    <div className="room-floor">
-                        {renderRoomArtworks(rooms[3], worksPerRoom * 3)}
-                    </div>
-                </div>
-
-                {/* Connecting corridors */}
-                <div className="corridor horizontal-corridor-1"></div>
-                <div className="corridor horizontal-corridor-2"></div>
-                <div className="corridor vertical-corridor-1"></div>
-                <div className="corridor vertical-corridor-2"></div>
-            </div>
-        </div>
-    );
-}
-
-function AuctionOverlay({ bids }) {
-    return (
-        <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0, 0, 0, 0.8)',
-            zIndex: 1000,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px'
-        }}>
-            <div style={{
-                position: 'relative',
-                width: '100%',
-                height: '100%',
-                maxWidth: '800px',
-                maxHeight: '600px'
-            }}>
-                {bids.map((bid, index) => (
-                    <div
-                        key={bid.id}
-                        style={{
-                            position: 'absolute',
-                            left: `${Math.random() * 60 + 20}%`,
-                            top: `${Math.random() * 60 + 20}%`,
-                            background: 'white',
-                            padding: '20px 30px',
-                            border: '4px solid #000',
-                            fontWeight: '900',
-                            fontSize: '32px',
-                            fontFamily: 'Arial Black, Helvetica, sans-serif',
-                            boxShadow: '8px 8px 0px rgba(0, 0, 0, 0.5)',
-                            animation: 'bidPop 0.6s ease-out forwards',
-                            zIndex: index
-                        }}
-                    >
-                        ${bid.amount.toLocaleString()}
                     </div>
                 ))}
-                
-                {bids.length >= 8 && (
-                    <div style={{
-                        position: 'absolute',
-                        left: '50%',
-                        top: '50%',
-                        transform: 'translate(-50%, -50%)',
-                        background: '#ff0000',
-                        color: 'white',
-                        padding: '40px 80px',
-                        border: '6px solid #000',
-                        fontWeight: '900',
-                        fontSize: '72px',
-                        fontFamily: 'Arial Black, Helvetica, sans-serif',
-                        boxShadow: '12px 12px 0px rgba(0, 0, 0, 0.7)',
-                        animation: 'soldFlash 0.5s ease-out',
-                        zIndex: 100
-                    }}>
-                        SOLD!
-                    </div>
-                )}
+            </div>
+            
+            <div style={{ display: 'flex', gap: '15px' }}>
+                <button className="start-auction-button" onClick={startAuction}>
+                    Begin Auction
+                </button>
+                <button 
+                    className="nav-button" 
+                    onClick={cancel}
+                    style={{ padding: '15px 40px' }}
+                >
+                    Cancel
+                </button>
             </div>
         </div>
     );
 }
 
-function AuctionSummary({ summary, onClose }) {
+function LiveAuction({ currentWork, currentBid, bidHistory, endCurrentAuction, auctionIndex, totalWorks }) {
     return (
-        <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0, 0, 0, 0.9)',
-            zIndex: 1001,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px'
-        }}>
-            <div style={{
-                background: 'white',
-                padding: '60px',
-                border: '6px solid #000',
-                maxWidth: '600px',
-                boxShadow: '16px 16px 0px rgba(0, 0, 0, 0.5)',
-                animation: 'summarySlide 0.5s ease-out'
-            }}>
-                <h2 style={{
-                    fontSize: '48px',
-                    fontWeight: '900',
-                    textTransform: 'uppercase',
-                    marginBottom: '40px',
-                    fontFamily: 'Arial Black, Helvetica, sans-serif',
-                    textAlign: 'center',
-                    color: '#ff00ff'
-                }}>
-                    Collection Sold
-                </h2>
+        <div className="auction-live">
+            <div style={{ marginBottom: '40px', paddingBottom: '20px', borderBottom: '1px solid #e0e0e0' }}>
+                <p style={{ fontSize: '11px', color: '#666', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                    Lot {auctionIndex + 1} of {totalWorks}
+                </p>
+            </div>
+            
+            <div className="auction-live-grid">
+                <div className="auction-artwork-display">
+                    <img src={currentWork.image} alt={currentWork.critique.title} />
+                    <h3 style={{ fontSize: '20px', fontWeight: '400', marginBottom: '8px' }}>
+                        {currentWork.critique.title}
+                    </h3>
+                    <p style={{ fontSize: '14px', color: '#666', marginBottom: '30px' }}>
+                        {currentWork.critique.artist}, {currentWork.critique.year}
+                    </p>
+                    <div className="current-bid">
+                        ${currentBid.toLocaleString()}
+                    </div>
+                    
+                    <div style={{ marginTop: '40px' }}>
+                        <button className="end-auction-button" onClick={endCurrentAuction}>
+                            {auctionIndex + 1 < totalWorks ? 'Sold - Next Lot' : 'Sold - End Auction'}
+                        </button>
+                        <p style={{ 
+                            fontSize: '11px', 
+                            color: '#666', 
+                            marginTop: '15px',
+                            textAlign: 'center',
+                            letterSpacing: '0.5px'
+                        }}>
+                            Click when bidding slows
+                        </p>
+                    </div>
+                </div>
                 
-                <div style={{
+                <div className="bid-history">
+                    <h4 className="bid-history-title">Live Bidding</h4>
+                    
+                    {bidHistory.length === 0 ? (
+                        <p style={{ 
+                            fontSize: '12px', 
+                            color: '#666',
+                            fontStyle: 'italic',
+                            marginTop: '20px'
+                        }}>
+                            Waiting for first bid...
+                        </p>
+                    ) : (
+                        bidHistory.map((bid, index) => (
+                            <div key={index} className="bid-item" style={{
+                                animation: index === 0 ? 'bidEnter 0.3s ease-out' : 'none'
+                            }}>
+                                <p className="bid-amount">${bid.amount.toLocaleString()}</p>
+                                <p style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>
+                                    {bid.bidder}
+                                </p>
+                                <p className="bid-time">{bid.time}</p>
+                            </div>
+                        ))
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function AuctionSummary({ results, closeSummary }) {
+    const totalRevenue = results.reduce((sum, result) => sum + result.finalBid, 0);
+    
+    return (
+        <div className="auction-summary-overlay">
+            <div className="auction-summary-content">
+                <h2 className="auction-summary-title">Auction Complete</h2>
+                
+                <div className="auction-summary-details">
+                    {results.map((result, index) => (
+                        <div key={index} className="summary-row">
+                            <div>
+                                <p style={{ fontSize: '13px', fontWeight: '400' }}>
+                                    {result.work.critique.title}
+                                </p>
+                                <p className="summary-label">{result.totalBids} bids</p>
+                            </div>
+                            <div className="summary-value">
+                                ${result.finalBid.toLocaleString()}
+                            </div>
+                        </div>
+                    ))}
+                    
+                    <div className="final-price">
+                        Total: ${totalRevenue.toLocaleString()}
+                    </div>
+                </div>
+                
+                <p style={{ 
+                    fontSize: '12px', 
+                    color: '#666', 
                     marginBottom: '30px',
-                    fontSize: '24px',
-                    fontWeight: '700',
                     lineHeight: '1.8'
                 }}>
-                    <p style={{ marginBottom: '16px' }}>
-                        <span style={{ color: '#666' }}>Total Works:</span> {summary.works}
-                    </p>
-                    <p style={{ marginBottom: '16px' }}>
-                        <span style={{ color: '#666' }}>Final Price Per Work:</span> ${summary.pricePerWork.toLocaleString()}
-                    </p>
-                    <p style={{
-                        fontSize: '36px',
-                        color: '#ff0000',
-                        fontWeight: '900',
-                        marginTop: '24px',
-                        paddingTop: '24px',
-                        borderTop: '3px solid #000'
-                    }}>
-                        Total Value: ${summary.totalValue.toLocaleString()}
-                    </p>
-                </div>
-                
-                <div style={{
-                    background: '#ffff00',
-                    padding: '20px',
-                    border: '3px solid #000',
-                    marginBottom: '30px'
-                }}>
-                    <p style={{
-                        fontSize: '14px',
-                        fontWeight: '700',
-                        lineHeight: '1.6',
-                        textAlign: 'center'
-                    }}>
-                        Your collection has been acquired by an anonymous collector. The archive has been cleared. 
-                        All institutional legitimacy has been successfully liquidated.
-                    </p>
-                </div>
+                    Works have been removed from archive. All institutional value has been successfully liquidated.
+                </p>
                 
                 <button
-                    onClick={onClose}
-                    style={{
-                        width: '100%',
-                        padding: '18px',
-                        background: '#000',
-                        color: 'white',
-                        border: 'none',
-                        fontWeight: '900',
-                        fontSize: '18px',
-                        textTransform: 'uppercase',
+                    className="start-auction-button"
+                    onClick={closeSummary}
+                >
+                    Return to Archive
+                </button>
+            </div>
+        </div>
+    );
+}
+
+function GalleryWallView({ walls, openArtMarket, viewEntry, selectedForAuction, toggleSelectForAuction, openPurchasedArtActions }) {
+    const renderArtwork = (wall, index) => {
+        if (!wall) {
+            return (
+                <div 
+                    className="perspective-empty-slot"
+                    onClick={() => openArtMarket(index)}
+                >
+                    <span className="plus-icon">+</span>
+                </div>
+            );
+        }
+
+        const imageUrl = wall.type === 'archive' ? wall.content.image : wall.content.image;
+        const title = wall.type === 'archive' ? wall.content.critique.title : wall.content.title;
+        const isArchive = wall.type === 'archive';
+        const isPurchased = wall.type === 'purchased';
+        const isSelected = isArchive && selectedForAuction && selectedForAuction.includes(wall.id);
+
+        return (
+            <div 
+                className="perspective-artwork"
+                style={{ position: 'relative' }}
+            >
+                {/* Checkbox for archive items */}
+                {isArchive && (
+                    <input
+                        type="checkbox"
+                        className="gallery-artwork-checkbox"
+                        checked={isSelected}
+                        onChange={(e) => {
+                            e.stopPropagation();
+                            toggleSelectForAuction(wall.id);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                )}
+                
+                <div
+                    onClick={() => {
+                        if (isArchive) {
+                            viewEntry(wall.content);
+                        } else if (isPurchased) {
+                            openPurchasedArtActions(wall, index);
+                        }
+                    }}
+                    style={{ 
                         cursor: 'pointer',
-                        fontFamily: 'Arial Black, Helvetica, sans-serif',
-                        letterSpacing: '2px'
+                        width: '100%',
+                        height: '100%'
                     }}
                 >
-                    Start New Collection
+                    <img 
+                        src={imageUrl}
+                        alt={title}
+                        style={{ 
+                            width: '100%', 
+                            height: '100%', 
+                            display: 'block',
+                            objectFit: 'cover'
+                        }}
+                        onError={(e) => {
+                            console.error('Image load error for:', title, imageUrl);
+                            e.target.style.backgroundColor = '#f0f0f0';
+                        }}
+                        onLoad={() => {
+                            console.log('Image loaded successfully:', title);
+                        }}
+                    />
+                </div>
+            </div>
+        );
+    };
+
+    return (
+        <div className="perspective-gallery">
+            <div className="perspective-room">
+                {/* Left Wall */}
+                <div className="perspective-wall left-wall">
+                    {[0, 1, 2].map(index => (
+                        <div key={index} className="perspective-slot left-slot">
+                            {renderArtwork(walls[index], index)}
+                        </div>
+                    ))}
+                </div>
+
+                {/* Back Wall */}
+                <div className="perspective-wall back-wall">
+                    {[3, 4, 5, 6].map(index => (
+                        <div key={index} className="perspective-slot back-slot">
+                            {renderArtwork(walls[index], index)}
+                        </div>
+                    ))}
+                </div>
+
+                {/* Right Wall */}
+                <div className="perspective-wall right-wall">
+                    {[7, 8, 9].map(index => (
+                        <div key={index} className="perspective-slot right-slot">
+                            {renderArtwork(walls[index], index)}
+                        </div>
+                    ))}
+                </div>
+
+                {/* Floor */}
+                <div className="perspective-floor"></div>
+            </div>
+        </div>
+    );
+}
+
+function ArtMarketModal({ fakeArtPieces, galleryFunds, purchaseFakeArt, onClose }) {
+    return (
+        <div className="art-market-overlay" onClick={onClose}>
+            <div className="art-market-content" onClick={(e) => e.stopPropagation()}>
+                <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    marginBottom: '30px',
+                    paddingBottom: '20px',
+                    borderBottom: '1px solid #e0e0e0'
+                }}>
+                    <h2 style={{ 
+                        fontSize: '18px', 
+                        fontWeight: '400',
+                        textTransform: 'uppercase',
+                        letterSpacing: '1px'
+                    }}>
+                        Art Market
+                    </h2>
+                    <div>
+                        <p style={{ fontSize: '11px', color: '#666', marginBottom: '5px' }}>Available Funds</p>
+                        <p style={{ fontSize: '18px', fontWeight: '400' }}>${galleryFunds.toLocaleString()}</p>
+                    </div>
+                </div>
+                
+                <div className="art-market-grid">
+                    {fakeArtPieces.map((piece, index) => (
+                        <div key={index} className="art-market-item">
+                            <div className="art-market-image">
+                                <img src={piece.image} alt={piece.title} />
+                            </div>
+                            <div className="art-market-info">
+                                <h3 style={{ fontSize: '13px', fontWeight: '400', marginBottom: '4px' }}>
+                                    {piece.title}
+                                </h3>
+                                <p style={{ fontSize: '11px', color: '#666', marginBottom: '10px' }}>
+                                    {piece.artist}
+                                </p>
+                                <p style={{ fontSize: '16px', fontWeight: '400', marginBottom: '12px' }}>
+                                    ${piece.price.toLocaleString()}
+                                </p>
+                                <button
+                                    className="purchase-button"
+                                    onClick={() => purchaseFakeArt(piece)}
+                                    disabled={galleryFunds < piece.price}
+                                >
+                                    {galleryFunds < piece.price ? 'Insufficient Funds' : 'Purchase'}
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                
+                <button 
+                    className="nav-button" 
+                    onClick={onClose}
+                    style={{ marginTop: '30px' }}
+                >
+                    Close
                 </button>
+            </div>
+        </div>
+    );
+}
+
+function PurchasedArtActions({ artwork, onSell, onSwap, onClose }) {
+    const { wall, valuation } = artwork;
+    const isProfitable = valuation.profit > 0;
+    
+    return (
+        <div className="art-market-overlay" onClick={onClose}>
+            <div className="purchased-art-actions" onClick={(e) => e.stopPropagation()}>
+                <div className="purchased-art-preview">
+                    <img src={wall.content.image} alt={wall.content.title} />
+                </div>
+                
+                <div className="purchased-art-details">
+                    <h2 style={{ 
+                        fontSize: '20px', 
+                        fontWeight: '400',
+                        marginBottom: '8px'
+                    }}>
+                        {wall.content.title}
+                    </h2>
+                    <p style={{ 
+                        fontSize: '14px', 
+                        color: '#666',
+                        marginBottom: '20px'
+                    }}>
+                        {wall.content.artist}
+                    </p>
+                    
+                    <div style={{ 
+                        padding: '20px',
+                        background: '#f8f8f8',
+                        border: '1px solid #e0e0e0',
+                        marginBottom: '20px'
+                    }}>
+                        <h3 style={{ 
+                            fontSize: '11px', 
+                            textTransform: 'uppercase',
+                            letterSpacing: '1px',
+                            color: '#666',
+                            marginBottom: '15px'
+                        }}>
+                            Market Valuation
+                        </h3>
+                        
+                        <div style={{ marginBottom: '12px' }}>
+                            <span style={{ fontSize: '12px', color: '#666' }}>Artist Status:</span>
+                            <span style={{ fontSize: '13px', marginLeft: '10px', textTransform: 'capitalize' }}>
+                                {valuation.prestige}
+                            </span>
+                        </div>
+                        
+                        <div style={{ marginBottom: '12px' }}>
+                            <span style={{ fontSize: '12px', color: '#666' }}>Exhibition History:</span>
+                            <p style={{ fontSize: '12px', marginTop: '5px', lineHeight: '1.6' }}>
+                                Displayed at {valuation.exhibitions}
+                            </p>
+                        </div>
+                        
+                        <div style={{ 
+                            marginTop: '20px',
+                            paddingTop: '20px',
+                            borderTop: '1px solid #e0e0e0'
+                        }}>
+                            <div style={{ marginBottom: '8px' }}>
+                                <span style={{ fontSize: '12px', color: '#666' }}>Original Purchase:</span>
+                                <span style={{ fontSize: '14px', marginLeft: '10px' }}>
+                                    ${wall.content.price.toLocaleString()}
+                                </span>
+                            </div>
+                            
+                            <div style={{ marginBottom: '8px' }}>
+                                <span style={{ fontSize: '12px', color: '#666' }}>Current Value:</span>
+                                <span style={{ 
+                                    fontSize: '18px', 
+                                    marginLeft: '10px',
+                                    fontWeight: '400'
+                                }}>
+                                    ${valuation.value.toLocaleString()}
+                                </span>
+                            </div>
+                            
+                            <div>
+                                <span style={{ fontSize: '12px', color: '#666' }}>
+                                    {isProfitable ? 'Profit:' : 'Loss:'}
+                                </span>
+                                <span style={{ 
+                                    fontSize: '16px', 
+                                    marginLeft: '10px',
+                                    color: isProfitable ? '#22c55e' : '#ef4444',
+                                    fontWeight: '500'
+                                }}>
+                                    {isProfitable ? '+' : ''}${valuation.profit.toLocaleString()}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
+                        <button
+                            className="start-auction-button"
+                            onClick={onSell}
+                            style={{ flex: 1 }}
+                        >
+                            Sell for ${valuation.value.toLocaleString()}
+                        </button>
+                        <button
+                            className="nav-button"
+                            onClick={onSwap}
+                            style={{ flex: 1, padding: '15px' }}
+                        >
+                            Swap Artwork
+                        </button>
+                    </div>
+                    
+                    <button
+                        className="nav-button"
+                        onClick={onClose}
+                        style={{ width: '100%', padding: '12px' }}
+                    >
+                        Cancel
+                    </button>
+                </div>
             </div>
         </div>
     );

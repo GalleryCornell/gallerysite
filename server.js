@@ -74,6 +74,22 @@ app.delete('/api/archive/clear', async (req, res) => {
     }
 });
 
+app.delete('/api/archive/:id', async (req, res) => {
+    try {
+        const data = await fs.readFile(ARCHIVE_FILE, 'utf8');
+        let archive = JSON.parse(data);
+        
+        archive = archive.filter(entry => entry.id !== req.params.id);
+        
+        await fs.writeFile(ARCHIVE_FILE, JSON.stringify(archive, null, 2));
+        
+        res.json({ success: true, message: 'Entry deleted' });
+    } catch (error) {
+        console.error('Error deleting entry:', error);
+        res.status(500).json({ error: 'Failed to delete entry' });
+    }
+});
+
 initializeArchive().then(() => {
     app.listen(PORT, () => {
         console.log(`Server running on http://localhost:${PORT}`);
