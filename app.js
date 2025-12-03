@@ -965,33 +965,23 @@ Make it satirical. The more mundane the image, the more pretentious the descript
 
 function CritiqueView({ critique, imagePreview, resetAnalysis, saveToArchive, saving, isArchiveView }) {
     return (
-        <div className="critique-section">
-            <div className="artwork-container">
-                <div className="artwork-image-wrapper">
-                    <img
-                        src={imagePreview}
-                        alt={critique.title}
-                        className="artwork-image"
-                    />
-                </div>
-                
-                <div className="artwork-metadata">
-                    <h2 className="artwork-title">{critique.title}</h2>
-                    <p className="artist-name">{critique.artist}</p>
-                    <div className="artwork-details">
-                        {critique.year}<br />
-                        {critique.medium}
-                    </div>
-                    
-                    <div className="label-section">
-                        <h3 className="label-title">Label</h3>
-                        <p className="label-text">{critique.label}</p>
-                    </div>
-                </div>
+        <div className="critique-container">
+            <div className="critique-image-section">
+                <img
+                    src={imagePreview}
+                    alt={critique.title}
+                    className="critique-image"
+                />
             </div>
 
             <div className="critique-content">
-                <h3 className="section-heading">Critical Analysis</h3>
+                <h2 className="critique-title">{critique.title}</h2>
+                <p className="critique-artist">{critique.artist}</p>
+                <p className="critique-year">{critique.year}</p>
+                <p className="critique-medium">{critique.medium}</p>
+                <p className="critique-label">{critique.label}</p>
+
+                <h3 className="critique-section-title">Critical Analysis</h3>
                 <div className="critique-text">
                     {critique.critique.split('\n\n').map((paragraph, index) => (
                         <p key={index}>
@@ -1000,46 +990,41 @@ function CritiqueView({ critique, imagePreview, resetAnalysis, saveToArchive, sa
                     ))}
                 </div>
 
-                <h3 className="section-heading">Exhibition History</h3>
-                <ul className="exhibition-list">
-                    {critique.exhibitions.map((exhibition, index) => (
-                        <li key={index} className="exhibition-item">
-                            {exhibition}
-                        </li>
-                    ))}
-                </ul>
-
-                <h3 className="section-heading">Provenance</h3>
-                {critique.provenance.map((line, index) => (
-                    <p key={index} className="provenance-chain">
-                        {line}
-                    </p>
-                ))}
-
-                <div className="qr-section">
-                    <div className="qr-code">
-                        QR
-                    </div>
-                    <p className="qr-caption">Documentation</p>
+                <div className="critique-exhibitions">
+                    <h3 className="critique-section-title">Exhibition History</h3>
+                    <ul>
+                        {critique.exhibitions.map((exhibition, index) => (
+                            <li key={index}>
+                                {exhibition}
+                            </li>
+                        ))}
+                    </ul>
                 </div>
-            </div>
 
-            <div className="new-analysis-section">
-                {!isArchiveView && saveToArchive && (
-                    <button
-                        className="new-analysis-button"
-                        onClick={saveToArchive}
-                        disabled={saving}
-                    >
-                        {saving ? 'Saving...' : 'Add to Archive'}
+                <div className="critique-provenance">
+                    <h3 className="critique-section-title">Provenance</h3>
+                    <ul>
+                        {critique.provenance.map((line, index) => (
+                            <li key={index}>
+                                {line}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+
+                <div className="critique-actions">
+                    {!isArchiveView && saveToArchive && (
+                        <button
+                            onClick={saveToArchive}
+                            disabled={saving}
+                        >
+                            {saving ? 'Saving...' : 'Add to Archive'}
+                        </button>
+                    )}
+                    <button onClick={resetAnalysis}>
+                        {isArchiveView ? 'Back' : 'New Submission'}
                     </button>
-                )}
-                <button
-                    className="new-analysis-button"
-                    onClick={resetAnalysis}
-                >
-                    {isArchiveView ? 'Back' : 'New Submission'}
-                </button>
+                </div>
             </div>
         </div>
     );
