@@ -23,7 +23,9 @@ async function initializeDatabase() {
                 artist TEXT NOT NULL,
                 year INTEGER NOT NULL,
                 medium TEXT NOT NULL,
+                label TEXT,
                 essay TEXT NOT NULL,
+                exhibitions JSONB,
                 provenance JSONB NOT NULL
             );
         `);
@@ -32,6 +34,18 @@ async function initializeDatabase() {
             CREATE INDEX IF NOT EXISTS idx_artworks_timestamp
             ON artworks(timestamp DESC);
         `);
+
+        // Add missing columns if they don't exist (migration)
+        try {
+            await db.query(`
+                ALTER TABLE artworks
+                ADD COLUMN IF NOT EXISTS label TEXT,
+                ADD COLUMN IF NOT EXISTS exhibitions JSONB;
+            `);
+            console.log('Database schema updated successfully');
+        } catch (error) {
+            console.log('Schema migration skipped (columns may already exist):', error.message);
+        }
 
         console.log('Database initialized successfully');
     } catch (error) {
@@ -54,9 +68,14 @@ app.get('/api/archive', async (req, res) => {
             critique: {
                 title: row.title,
                 artist: row.artist,
-                year: row.year,
+                year: row.year.toString(),  // Ensure year is string
                 medium: row.medium,
-                essay: row.essay,
+                label: row.label || 'This work interrogates the phenomenology of contemporary practice.',
+                critique: row.essay,  // Map essay to critique for frontend
+                exhibitions: row.exhibitions || [
+                    "'Recent Works,' Contemporary Gallery (2023)",
+                    "'New Acquisitions,' Museum of Modern Art (2024)"
+                ],
                 provenance: row.provenance
             }
         }));
@@ -82,8 +101,8 @@ app.post('/api/archive', async (req, res) => {
 
         // Save to database
         const result = await db.query(
-            `INSERT INTO artworks (image_url, title, artist, year, medium, essay, provenance)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
+            `INSERT INTO artworks (image_url, title, artist, year, medium, label, essay, exhibitions, provenance)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
              RETURNING *`,
             [
                 imageUrl,
@@ -91,7 +110,9 @@ app.post('/api/archive', async (req, res) => {
                 critique.artist,
                 critique.year,
                 critique.medium,
-                critique.critique, // Fixed: use critique.critique instead of critique.essay
+                critique.label || '',
+                critique.critique,
+                JSON.stringify(critique.exhibitions || []),
                 JSON.stringify(critique.provenance)
             ]
         );
@@ -107,6 +128,31 @@ app.post('/api/archive', async (req, res) => {
     } catch (error) {
         console.error('Error saving to archive:', error);
         res.status(500).json({ error: 'Failed to save to archive' });
+    }
+});
+
+// DELETE /api/archive/:id - Delete individual artwork
+app.delete('/api/archive/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Get the image URL before deleting
+        const result = await db.query('SELECT image_url FROM artworks WHERE id = $1', [id]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Artwork not found' });
+        }
+
+        // Delete image from Cloudinary
+        await deleteImage(result.rows[0].image_url);
+
+        // Delete record from database
+        await db.query('DELETE FROM artworks WHERE id = $1', [id]);
+
+        res.json({ success: true, message: 'Artwork deleted' });
+    } catch (error) {
+        console.error('Error deleting artwork:', error);
+        res.status(500).json({ error: 'Failed to delete artwork' });
     }
 });
 

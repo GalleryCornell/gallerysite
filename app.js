@@ -1,4 +1,4 @@
-const { useState, useEffect } = React;
+const { useState, useEffect, useRef } = React;
 
 const API_URL = 'https://gallerysite-production.up.railway.app/api';
 
@@ -22,6 +22,18 @@ function App() {
         return saved ? parseInt(saved, 10) : 0;
     });
     const [artworkPrices, setArtworkPrices] = useState({});
+
+    // Individual auction states
+    const [selectedArtworkForAuction, setSelectedArtworkForAuction] = useState(null);
+    const [auctionStep, setAuctionStep] = useState(null); // 'context-menu', 'price-select', 'bidding', 'sold'
+    const [startingPrice, setStartingPrice] = useState(null);
+    const [selectedPrice, setSelectedPrice] = useState(null);
+    const [currentBid, setCurrentBid] = useState(null);
+    const [individualBids, setIndividualBids] = useState([]);
+    const [biddingActive, setBiddingActive] = useState(false);
+    const [finalBuyer, setFinalBuyer] = useState(null);
+    const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
+    const biddingActiveRef = useRef(false);
 
     // Save gallery funds to localStorage whenever it changes
     React.useEffect(() => {
@@ -117,6 +129,56 @@ function App() {
                 "Current owner prefers to remain anonymous but is known to the artist",
             ],
         ],
+        buyerProfiles: [
+            {
+                name: "Helena Kristiansen",
+                title: "Director, Nordic Contemporary Foundation",
+                bio: "Helena Kristiansen has spent two decades building one of Scandinavia's most enigmatic private collections. A former philosophy professor who pivoted to collecting after an inheritance from an uncle she claims never to have met, Kristiansen is known for acquiring works that 'resist coherence.' Her collection is stored in a climate-controlled warehouse in rural Norway that no journalist has ever been permitted to photograph.",
+                photo: "👤"
+            },
+            {
+                name: "Dr. Marcus Chen",
+                title: "Anonymous Collector & Tech Entrepreneur",
+                bio: "After selling his algorithmic trading company for an undisclosed sum, Dr. Marcus Chen vanished from Silicon Valley to pursue what he calls 'investments in cultural ambiguity.' He collects exclusively through intermediaries and has never publicly displayed a single work. Sources close to Chen suggest his collection is intended as 'a museum that will open after I'm gone, or perhaps never.'",
+                photo: "👤"
+            },
+            {
+                name: "The Vestergaard Trust",
+                title: "Anonymous Institutional Collector",
+                bio: "The Vestergaard Trust operates from an unmarked office in Copenhagen's financial district. Established in 1987 by funds of disputed origin, the Trust acquires contemporary art according to criteria that remain confidential. Rumored to own over 400 works, none have been publicly exhibited. The Trust's sole representative, known only as 'K.V.,' conducts all acquisitions via encrypted correspondence.",
+                photo: "👤"
+            },
+            {
+                name: "Sophia Alderman",
+                title: "Curator & Private Collector",
+                bio: "Sophia Alderman built her reputation curating institutional exhibitions that were 'more notable for what they excluded than what they showed.' After a controversial departure from the Tate in 2019, she retreated to a restored monastery in Portugal where she maintains a private collection she describes as 'a catalog of abandoned artistic intentions.' Visits are by invitation only, and guests are required to sign NDAs.",
+                photo: "👤"
+            },
+            {
+                name: "The Institute of Residual Culture",
+                title: "Collective Acquisition Entity",
+                bio: "The Institute of Residual Culture is not a place but a dispersed network of collectors who pool resources to acquire works deemed 'culturally stranded.' Founded in 2015, the collective has no permanent address, no board of directors, and no stated mission beyond 'preventing the disappearance of disappearing things.' Acquired works are distributed among members according to a rotating system that remains opaque to outsiders.",
+                photo: "👤"
+            },
+            {
+                name: "Dmitri Volkov",
+                title: "Oligarch & Cultural Preservationist",
+                bio: "Once known for funding avant-garde theater in Moscow, Dmitri Volkov's collecting practices became more cryptic following his quiet departure from Russia in 2014. Now based in London, he acquires art through a web of shell companies and third-party representatives. His collection is believed to be housed in multiple undisclosed locations across three continents. Volkov himself has not been photographed since 2016.",
+                photo: "👤"
+            },
+            {
+                name: "Yuki Tanaka",
+                title: "Pharmaceutical Heir & Aesthetic Theorist",
+                bio: "Yuki Tanaka inherited a pharmaceutical fortune at 28 and immediately withdrew from public life to pursue what she calls 'the collection as negative space.' Her acquisitions are reportedly stored in a purpose-built vault beneath her family's estate outside Tokyo. Tanaka has published several pseudonymous essays on the 'ethics of ownership' but refuses all interview requests and communicates only through her attorney.",
+                photo: "👤"
+            },
+            {
+                name: "The Berlinische Collective",
+                title: "Anonymous Artistic Cooperative",
+                bio: "The Berlinische Collective emerged in 2017 as a group of anonymous artists who collect the work of others 'to remove it from circulation.' Their manifesto, if it can be called that, argues that art achieves its final form only when withdrawn from view. The collective's membership is unknown, and works they acquire simply vanish. They are funded by a trust established by a deceased art dealer whose will stipulated the money be used for 'purposes antithetical to the market.'",
+                photo: "👤"
+            }
+        ]
     };
 
     useEffect(() => {
@@ -326,6 +388,128 @@ function App() {
         setCurrentView('entry');
     };
 
+    // Individual artwork auction functions
+    const selectArtworkForAuction = (artwork, event) => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        setContextMenuPosition({
+            x: rect.left + rect.width / 2,
+            y: rect.top + rect.height / 2
+        });
+        setSelectedArtworkForAuction(artwork);
+        setAuctionStep('context-menu');
+    };
+
+    const openAuctionFromMenu = () => {
+        setAuctionStep('price-select');
+    };
+
+    const startIndividualAuction = async () => {
+        setStartingPrice(selectedPrice);
+        setCurrentBid(selectedPrice);
+        setAuctionStep('bidding');
+        setIndividualBids([]);
+        setBiddingActive(true);
+        biddingActiveRef.current = true;
+
+        // Initial pause before showing "Bidding starts at" message
+        await new Promise(resolve => setTimeout(resolve, 800));
+
+        // Show initial "Bidding starts at" message
+        setIndividualBids([{
+            id: -1,
+            amount: selectedPrice,
+            timestamp: Date.now(),
+            isStartMessage: true
+        }]);
+
+        // Pause before actual bids start
+        await new Promise(resolve => setTimeout(resolve, 1200));
+
+        // Generate more bids with smaller increments
+        const numBids = Math.floor(Math.random() * 10) + 15; // 15-24 bids
+        const maxBid = selectedPrice * (1.8 + Math.random() * 1.5); // 1.8x to 3.3x starting price
+        const bidIncrement = (maxBid - selectedPrice) / numBids;
+
+        for (let i = 0; i < numBids; i++) {
+            // Calculate delay: progressively slower
+            let baseDelay;
+            if (i < 5) {
+                baseDelay = 600; // First 5 bids: fast
+            } else if (i < 10) {
+                baseDelay = 900; // Next 5: medium
+            } else if (i < 15) {
+                baseDelay = 1400; // Next 5: slow
+            } else {
+                baseDelay = 2200; // Final bids: very slow
+            }
+            const randomVariation = Math.random() * 300;
+            const delay = baseDelay + randomVariation;
+
+            await new Promise(resolve => setTimeout(resolve, delay));
+
+            if (!biddingActiveRef.current) break; // Allow manual stopping
+
+            // Smaller, more realistic bid increments
+            const bidAmount = Math.floor(selectedPrice + (bidIncrement * (i + 1)) + (Math.random() * 2000));
+            setCurrentBid(bidAmount);
+            setIndividualBids(prev => [...prev, {
+                id: i,
+                amount: bidAmount,
+                timestamp: Date.now(),
+                isStartMessage: false
+            }]);
+        }
+
+        setBiddingActive(false);
+        biddingActiveRef.current = false;
+    };
+
+    const endBidding = async () => {
+        setBiddingActive(false);
+        biddingActiveRef.current = false;
+
+        // Select random buyer
+        const buyer = critiqueTemplates.buyerProfiles[Math.floor(Math.random() * critiqueTemplates.buyerProfiles.length)];
+        setFinalBuyer(buyer);
+        setAuctionStep('sold');
+    };
+
+    const completeSale = async () => {
+        // Update gallery funds
+        setGalleryFunds(prevFunds => prevFunds + currentBid);
+
+        // Delete from archive
+        try {
+            await fetch(`${API_URL}/archive/${selectedArtworkForAuction.id}`, {
+                method: 'DELETE'
+            });
+
+            // Reload archive
+            await loadArchive();
+        } catch (error) {
+            console.error('Error deleting artwork:', error);
+        }
+
+        // Reset auction states
+        setSelectedArtworkForAuction(null);
+        setAuctionStep(null);
+        setStartingPrice(null);
+        setCurrentBid(null);
+        setIndividualBids([]);
+        setFinalBuyer(null);
+    };
+
+    const cancelAuction = () => {
+        setSelectedArtworkForAuction(null);
+        setAuctionStep(null);
+        setStartingPrice(null);
+        setSelectedPrice(null);
+        setCurrentBid(null);
+        setIndividualBids([]);
+        setBiddingActive(false);
+        setFinalBuyer(null);
+    };
+
     const startAuction = async () => {
         if (archive.length === 0) return;
 
@@ -415,7 +599,7 @@ function App() {
                 <div className="container">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <div>
-                            <h1 className="site-title" onClick={() => setCurrentView('upload')} style={{cursor: 'pointer'}}>
+                            <h1 className="site-title" onClick={resetAnalysis} style={{cursor: 'pointer'}}>
                                 The Faux Critic
                             </h1>
                             <p className="site-subtitle">Institutional Analysis Archive</p>
@@ -449,9 +633,9 @@ function App() {
                         )}
                     </div>
                     <div className="nav-buttons">
-                        <button 
+                        <button
                             className="nav-button"
-                            onClick={() => setCurrentView('upload')}
+                            onClick={resetAnalysis}
                             style={{
                                 background: currentView === 'upload' ? '#ff00ff' : 'transparent',
                                 color: currentView === 'upload' ? 'white' : '#000',
@@ -523,6 +707,7 @@ function App() {
                             setDebugMode={setDebugMode}
                             startAuction={startAuction}
                             artworkPrices={artworkPrices}
+                            selectArtworkForAuction={selectArtworkForAuction}
                         />
                         {auctionActive && (
                             <AuctionOverlay bids={auctionBids} />
@@ -531,6 +716,45 @@ function App() {
                             <AuctionSummary
                                 summary={auctionSummary}
                                 onClose={closeAuctionSummary}
+                            />
+                        )}
+                        {auctionStep === 'context-menu' && selectedArtworkForAuction && (
+                            <ArtworkContextMenu
+                                artwork={selectedArtworkForAuction}
+                                position={contextMenuPosition}
+                                onViewInfo={() => {
+                                    cancelAuction();
+                                    viewEntry(selectedArtworkForAuction);
+                                }}
+                                onOpenAuction={openAuctionFromMenu}
+                                onCancel={cancelAuction}
+                            />
+                        )}
+                        {auctionStep === 'price-select' && selectedArtworkForAuction && (
+                            <PriceSelectionOverlay
+                                artwork={selectedArtworkForAuction}
+                                selectedPrice={selectedPrice}
+                                onSelectPrice={setSelectedPrice}
+                                onStartBidding={startIndividualAuction}
+                                onCancel={cancelAuction}
+                                dimGallery={true}
+                            />
+                        )}
+                        {auctionStep === 'bidding' && (
+                            <BiddingOverlay
+                                artwork={selectedArtworkForAuction}
+                                currentBid={currentBid}
+                                bids={individualBids}
+                                biddingActive={biddingActive}
+                                onEndBidding={endBidding}
+                            />
+                        )}
+                        {auctionStep === 'sold' && finalBuyer && (
+                            <BuyerRevealOverlay
+                                artwork={selectedArtworkForAuction}
+                                finalPrice={currentBid}
+                                buyer={finalBuyer}
+                                onComplete={completeSale}
                             />
                         )}
                     </>
@@ -632,7 +856,7 @@ function CritiqueView({ critique, imagePreview, resetAnalysis, saveToArchive, sa
     );
 }
 
-function ArchiveView({ archive, viewEntry, exhibitionMode, setExhibitionMode, debugMode, setDebugMode, startAuction, artworkPrices }) {
+function ArchiveView({ archive, viewEntry, exhibitionMode, setExhibitionMode, debugMode, setDebugMode, startAuction, artworkPrices, selectArtworkForAuction }) {
     return (
         <div style={{ padding: '60px 0' }}>
             <div style={{
@@ -696,25 +920,6 @@ function ArchiveView({ archive, viewEntry, exhibitionMode, setExhibitionMode, de
                                     Debug Mode
                                 </button>
                             )}
-                            <button
-                                onClick={startAuction}
-                                style={{
-                                    padding: '14px 28px',
-                                    border: '3px solid #000',
-                                    background: '#ff0000',
-                                    color: 'white',
-                                    fontWeight: '900',
-                                    textTransform: 'uppercase',
-                                    cursor: 'pointer',
-                                    fontSize: '14px',
-                                    letterSpacing: '2px',
-                                    fontFamily: 'Arial Black, Helvetica, sans-serif',
-                                    boxShadow: '4px 4px 0px rgba(0, 0, 0, 0.3)',
-                                    transition: 'all 0.2s'
-                                }}
-                            >
-                                Sell Collection
-                            </button>
                         </>
                     )}
                 </div>
@@ -731,7 +936,7 @@ function ArchiveView({ archive, viewEntry, exhibitionMode, setExhibitionMode, de
                     No entries yet. Be the first to contribute.
                 </p>
             ) : exhibitionMode ? (
-                <ExhibitionView archive={archive} viewEntry={viewEntry} debugMode={debugMode} />
+                <ExhibitionView archive={archive} viewEntry={viewEntry} debugMode={debugMode} selectArtworkForAuction={selectArtworkForAuction} />
             ) : (
                 <div className="archive-grid">
                     {archive.map((entry) => (
@@ -774,7 +979,7 @@ function ArchiveView({ archive, viewEntry, exhibitionMode, setExhibitionMode, de
     );
 }
 
-function ExhibitionView({ archive, viewEntry, debugMode }) {
+function ExhibitionView({ archive, viewEntry, debugMode, selectArtworkForAuction }) {
     // Position state for debug mode
     const [leftWallPos, setLeftWallPos] = React.useState({ rotateY: -90, translateX: 150, translateY: -100, translateZ: 0 });
     const [rightWallPos, setRightWallPos] = React.useState({ rotateX: -90, translateX: 0, translateY: 0, translateZ: 0 });
@@ -802,9 +1007,10 @@ function ExhibitionView({ archive, viewEntry, debugMode }) {
                     <div
                         key={entry.id}
                         className="floor-artwork"
-                        onClick={() => viewEntry(entry)}
+                        onClick={(e) => selectArtworkForAuction(entry, e)}
                         style={{
-                            animationDelay: `${totalIndex * 0.15}s`
+                            animationDelay: `${totalIndex * 0.15}s`,
+                            cursor: 'pointer'
                         }}
                     >
                         <img src={entry.image} alt={entry.critique.title} />
@@ -836,8 +1042,8 @@ function ExhibitionView({ archive, viewEntry, debugMode }) {
             <div
                 key={artwork.id}
                 className="wall-artwork"
-                onClick={() => viewEntry(artwork)}
-                style={{ animationDelay: `${totalIndex * 0.15}s` }}
+                onClick={(e) => selectArtworkForAuction(artwork, e)}
+                style={{ animationDelay: `${totalIndex * 0.15}s`, cursor: 'pointer' }}
             >
                 <img src={artwork.image} alt={artwork.critique.title} />
             </div>
@@ -1143,6 +1349,561 @@ function AuctionSummary({ summary, onClose }) {
                     }}
                 >
                     Start New Collection
+                </button>
+            </div>
+        </div>
+    );
+}
+
+// Artwork Context Menu
+function ArtworkContextMenu({ artwork, position, onViewInfo, onOpenAuction, onCancel }) {
+    return (
+        <div
+            onClick={onCancel}
+            style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(0, 0, 0, 0.5)',
+                zIndex: 2000
+            }}
+        >
+            <div
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                    position: 'absolute',
+                    left: `${position.x}px`,
+                    top: `${position.y}px`,
+                    transform: 'translate(-50%, -50%)',
+                    background: 'white',
+                    border: '3px solid #000',
+                    boxShadow: '6px 6px 0px rgba(0, 0, 0, 0.5)',
+                    minWidth: '220px',
+                    animation: 'slideUp 0.2s ease-out'
+                }}
+            >
+                <div style={{
+                    padding: '12px 15px',
+                    borderBottom: '2px solid #000',
+                    background: '#f5f5f5'
+                }}>
+                    <h3 style={{
+                        fontSize: '14px',
+                        fontWeight: '900',
+                        marginBottom: '3px'
+                    }}>
+                        {artwork.critique.title}
+                    </h3>
+                    <p style={{
+                        fontSize: '11px',
+                        color: '#666',
+                        fontWeight: '700'
+                    }}>
+                        {artwork.critique.artist}, {artwork.critique.year}
+                    </p>
+                </div>
+
+                <div style={{ padding: '8px' }}>
+                    <button
+                        onClick={onViewInfo}
+                        style={{
+                            width: '100%',
+                            padding: '10px',
+                            marginBottom: '8px',
+                            background: 'white',
+                            border: '2px solid #000',
+                            fontWeight: '900',
+                            fontSize: '13px',
+                            cursor: 'pointer',
+                            fontFamily: 'Arial Black, Helvetica, sans-serif',
+                            transition: 'all 0.2s'
+                        }}
+                        onMouseOver={(e) => {
+                            e.target.style.background = '#f5f5f5';
+                        }}
+                        onMouseOut={(e) => {
+                            e.target.style.background = 'white';
+                        }}
+                    >
+                        More Info
+                    </button>
+
+                    <button
+                        onClick={onOpenAuction}
+                        style={{
+                            width: '100%',
+                            padding: '10px',
+                            background: '#ffff00',
+                            border: '2px solid #000',
+                            fontWeight: '900',
+                            fontSize: '13px',
+                            cursor: 'pointer',
+                            fontFamily: 'Arial Black, Helvetica, sans-serif',
+                            boxShadow: '3px 3px 0px rgba(0, 0, 0, 0.3)',
+                            transition: 'all 0.2s'
+                        }}
+                        onMouseOver={(e) => {
+                            e.target.style.background = '#ff00ff';
+                            e.target.style.color = 'white';
+                        }}
+                        onMouseOut={(e) => {
+                            e.target.style.background = '#ffff00';
+                            e.target.style.color = '#000';
+                        }}
+                    >
+                        Open Auction
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// Price Selection Overlay
+function PriceSelectionOverlay({ artwork, selectedPrice, onSelectPrice, onStartBidding, onCancel }) {
+    const priceOptions = [
+        { label: '$25,000', value: 25000 },
+        { label: '$50,000', value: 50000 },
+        { label: '$75,000', value: 75000 },
+        { label: '$100,000', value: 100000 }
+    ];
+
+    return (
+        <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.9)',
+            zIndex: 2000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+        }}>
+            <div style={{
+                background: 'white',
+                padding: '30px',
+                border: '4px solid #000',
+                maxWidth: '500px',
+                width: '100%',
+                maxHeight: '90vh',
+                overflowY: 'auto',
+                boxShadow: '8px 8px 0px rgba(0, 0, 0, 0.5)'
+            }}>
+                <h2 style={{
+                    fontSize: '22px',
+                    fontWeight: '900',
+                    textTransform: 'uppercase',
+                    marginBottom: '15px',
+                    fontFamily: 'Arial Black, Helvetica, sans-serif'
+                }}>
+                    Select Starting Price
+                </h2>
+
+                <div style={{
+                    marginBottom: '20px',
+                    padding: '12px',
+                    background: '#f5f5f5',
+                    border: '2px solid #000'
+                }}>
+                    <img
+                        src={artwork.image}
+                        alt={artwork.critique.title}
+                        style={{
+                            width: '100%',
+                            height: '120px',
+                            objectFit: 'cover',
+                            marginBottom: '10px'
+                        }}
+                    />
+                    <h3 style={{ fontSize: '15px', fontWeight: '900', marginBottom: '3px' }}>
+                        {artwork.critique.title}
+                    </h3>
+                    <p style={{ fontSize: '12px', fontWeight: '700', color: '#666' }}>
+                        {artwork.critique.artist}, {artwork.critique.year}
+                    </p>
+                </div>
+
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '12px',
+                    marginBottom: '15px'
+                }}>
+                    {priceOptions.map(option => (
+                        <button
+                            key={option.value}
+                            onClick={() => onSelectPrice(option.value)}
+                            style={{
+                                padding: '12px',
+                                background: selectedPrice === option.value ? '#ff00ff' : '#ffff00',
+                                color: selectedPrice === option.value ? 'white' : '#000',
+                                border: '3px solid #000',
+                                fontWeight: '900',
+                                fontSize: '16px',
+                                cursor: 'pointer',
+                                fontFamily: 'Arial Black, Helvetica, sans-serif',
+                                boxShadow: selectedPrice === option.value ? '6px 6px 0px rgba(0, 0, 0, 0.5)' : '3px 3px 0px rgba(0, 0, 0, 0.3)',
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            {option.label}
+                        </button>
+                    ))}
+                </div>
+
+                <button
+                    onClick={onStartBidding}
+                    disabled={!selectedPrice}
+                    style={{
+                        width: '100%',
+                        padding: '14px',
+                        marginBottom: '12px',
+                        background: selectedPrice ? '#00ff00' : '#ccc',
+                        color: selectedPrice ? '#000' : '#666',
+                        border: '3px solid #000',
+                        fontWeight: '900',
+                        fontSize: '16px',
+                        textTransform: 'uppercase',
+                        cursor: selectedPrice ? 'pointer' : 'not-allowed',
+                        fontFamily: 'Arial Black, Helvetica, sans-serif',
+                        letterSpacing: '1px',
+                        boxShadow: selectedPrice ? '6px 6px 0px rgba(0, 0, 0, 0.5)' : 'none',
+                        opacity: selectedPrice ? 1 : 0.5
+                    }}
+                >
+                    Start Bidding
+                </button>
+
+                <button
+                    onClick={onCancel}
+                    style={{
+                        width: '100%',
+                        padding: '12px',
+                        background: '#000',
+                        color: 'white',
+                        border: 'none',
+                        fontWeight: '900',
+                        fontSize: '14px',
+                        textTransform: 'uppercase',
+                        cursor: 'pointer',
+                        fontFamily: 'Arial Black, Helvetica, sans-serif',
+                        letterSpacing: '1px'
+                    }}
+                >
+                    Cancel
+                </button>
+            </div>
+        </div>
+    );
+}
+
+// Bidding Overlay - Full Screen with Message Bubbles
+function BiddingOverlay({ artwork, currentBid, bids, biddingActive, onEndBidding }) {
+    return (
+        <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.85)',
+            zIndex: 2000,
+            overflow: 'hidden'
+        }}>
+            {/* Bid bubbles - staggering left and right */}
+            <div style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: '70%',
+                maxWidth: '600px',
+                height: '60%',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'stretch',
+                gap: '10px',
+                overflow: 'visible',
+                pointerEvents: 'none'
+            }}>
+                {bids.map((bid, index) => {
+                    const isStartMessage = bid.isStartMessage;
+                    const isLatestBid = index === bids.length - 1 && !isStartMessage;
+
+                    return (
+                        <div
+                            key={bid.id}
+                            style={{
+                                alignSelf: isStartMessage ? 'center' : (index % 2 === 0 ? 'flex-start' : 'flex-end'),
+                                maxWidth: isStartMessage ? '80%' : '50%',
+                                animation: 'bidSlide 0.4s ease-out',
+                                pointerEvents: 'none'
+                            }}
+                        >
+                            <div style={{
+                                background: isStartMessage ? '#00ff00' : (isLatestBid ? '#ff00ff' : '#ffff00'),
+                                color: isStartMessage ? '#000' : (isLatestBid ? 'white' : '#000'),
+                                padding: isStartMessage ? '16px 24px' : '12px 20px',
+                                border: '3px solid #000',
+                                fontWeight: '900',
+                                fontSize: isStartMessage ? '18px' : '20px',
+                                fontFamily: 'Arial Black, Helvetica, sans-serif',
+                                boxShadow: '6px 6px 0px rgba(0, 0, 0, 0.5)',
+                                borderRadius: isStartMessage ? '15px' : (index % 2 === 0 ? '0 15px 15px 15px' : '15px 0 15px 15px'),
+                                textAlign: isStartMessage ? 'center' : 'left'
+                            }}>
+                                {isStartMessage ? `Bidding starts at $${bid.amount.toLocaleString()}` : `$${bid.amount.toLocaleString()}`}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* Fixed header with current bid */}
+            <div style={{
+                position: 'fixed',
+                top: '15px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                background: '#ffff00',
+                border: '3px solid #000',
+                padding: '12px 25px',
+                boxShadow: '6px 6px 0px rgba(0, 0, 0, 0.5)',
+                zIndex: 2001
+            }}>
+                <div style={{
+                    fontSize: '10px',
+                    fontWeight: '700',
+                    marginBottom: '3px',
+                    textAlign: 'center',
+                    textTransform: 'uppercase',
+                    letterSpacing: '1px'
+                }}>
+                    Current Bid
+                </div>
+                <div style={{
+                    fontSize: '28px',
+                    fontWeight: '900',
+                    fontFamily: 'Arial Black, Helvetica, sans-serif',
+                    color: '#ff0000',
+                    textAlign: 'center'
+                }}>
+                    ${currentBid ? currentBid.toLocaleString() : '0'}
+                </div>
+            </div>
+
+            {/* Fixed footer with artwork info and button */}
+            <div style={{
+                position: 'fixed',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                background: 'white',
+                borderTop: '4px solid #000',
+                padding: '15px 20px',
+                zIndex: 2001
+            }}>
+                <div style={{
+                    maxWidth: '1000px',
+                    margin: '0 auto',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '20px'
+                }}>
+                    <div style={{ flex: 1 }}>
+                        <h3 style={{
+                            fontSize: '16px',
+                            fontWeight: '900',
+                            marginBottom: '4px',
+                            fontFamily: 'Arial Black, Helvetica, sans-serif'
+                        }}>
+                            {artwork.critique.title}
+                        </h3>
+                        <p style={{
+                            fontSize: '13px',
+                            fontWeight: '700',
+                            color: '#666'
+                        }}>
+                            {artwork.critique.artist}, {artwork.critique.year}
+                        </p>
+                    </div>
+
+                    <button
+                        onClick={onEndBidding}
+                        disabled={biddingActive}
+                        style={{
+                            padding: '12px 25px',
+                            background: biddingActive ? '#666' : '#ff0000',
+                            color: 'white',
+                            border: '3px solid #000',
+                            fontWeight: '900',
+                            fontSize: '14px',
+                            textTransform: 'uppercase',
+                            cursor: biddingActive ? 'not-allowed' : 'pointer',
+                            fontFamily: 'Arial Black, Helvetica, sans-serif',
+                            letterSpacing: '1px',
+                            opacity: biddingActive ? 0.6 : 1,
+                            boxShadow: '4px 4px 0px rgba(0, 0, 0, 0.5)',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        {biddingActive ? 'Bidding...' : 'End Bidding'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// Buyer Reveal Overlay
+function BuyerRevealOverlay({ artwork, finalPrice, buyer, onComplete }) {
+    return (
+        <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.95)',
+            zIndex: 2000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+            animation: 'fadeIn 0.5s ease-out'
+        }}>
+            <div style={{
+                background: 'white',
+                padding: '30px',
+                border: '4px solid #000',
+                maxWidth: '600px',
+                width: '100%',
+                maxHeight: '90vh',
+                overflowY: 'auto',
+                boxShadow: '8px 8px 0px rgba(0, 0, 0, 0.5)',
+                animation: 'slideUp 0.5s ease-out'
+            }}>
+                <div style={{
+                    textAlign: 'center',
+                    marginBottom: '20px'
+                }}>
+                    <div style={{
+                        background: '#ff0000',
+                        color: 'white',
+                        padding: '12px',
+                        border: '3px solid #000',
+                        fontSize: '32px',
+                        fontWeight: '900',
+                        fontFamily: 'Arial Black, Helvetica, sans-serif',
+                        marginBottom: '10px',
+                        boxShadow: '6px 6px 0px rgba(0, 0, 0, 0.3)'
+                    }}>
+                        SOLD!
+                    </div>
+                    <div style={{
+                        fontSize: '24px',
+                        fontWeight: '900',
+                        fontFamily: 'Arial Black, Helvetica, sans-serif',
+                        color: '#ff00ff'
+                    }}>
+                        ${finalPrice.toLocaleString()}
+                    </div>
+                </div>
+
+                <div style={{
+                    display: 'flex',
+                    gap: '15px',
+                    marginBottom: '20px',
+                    padding: '15px',
+                    background: '#f5f5f5',
+                    border: '2px solid #000'
+                }}>
+                    <img
+                        src={artwork.image}
+                        alt={artwork.critique.title}
+                        style={{
+                            width: '120px',
+                            height: '120px',
+                            objectFit: 'cover',
+                            border: '2px solid #000'
+                        }}
+                    />
+                    <div>
+                        <h3 style={{ fontSize: '16px', fontWeight: '900', marginBottom: '5px' }}>
+                            {artwork.critique.title}
+                        </h3>
+                        <p style={{ fontSize: '13px', fontWeight: '700', color: '#666' }}>
+                            {artwork.critique.artist}, {artwork.critique.year}
+                        </p>
+                    </div>
+                </div>
+
+                <div style={{
+                    background: '#ffff00',
+                    border: '3px solid #000',
+                    padding: '20px',
+                    marginBottom: '20px',
+                    boxShadow: '6px 6px 0px rgba(0, 0, 0, 0.3)'
+                }}>
+                    <div style={{
+                        fontSize: '48px',
+                        textAlign: 'center',
+                        marginBottom: '12px'
+                    }}>
+                        {buyer.photo}
+                    </div>
+                    <h3 style={{
+                        fontSize: '18px',
+                        fontWeight: '900',
+                        textAlign: 'center',
+                        marginBottom: '6px',
+                        fontFamily: 'Arial Black, Helvetica, sans-serif'
+                    }}>
+                        {buyer.name}
+                    </h3>
+                    <p style={{
+                        fontSize: '11px',
+                        fontWeight: '700',
+                        textAlign: 'center',
+                        marginBottom: '12px',
+                        color: '#666',
+                        textTransform: 'uppercase',
+                        letterSpacing: '1px'
+                    }}>
+                        {buyer.title}
+                    </p>
+                    <p style={{
+                        fontSize: '12px',
+                        lineHeight: '1.5',
+                        textAlign: 'justify'
+                    }}>
+                        {buyer.bio}
+                    </p>
+                </div>
+
+                <button
+                    onClick={onComplete}
+                    style={{
+                        width: '100%',
+                        padding: '12px',
+                        background: '#000',
+                        color: 'white',
+                        border: 'none',
+                        fontWeight: '900',
+                        fontSize: '14px',
+                        textTransform: 'uppercase',
+                        cursor: 'pointer',
+                        fontFamily: 'Arial Black, Helvetica, sans-serif',
+                        letterSpacing: '1px'
+                    }}
+                >
+                    Complete Sale
                 </button>
             </div>
         </div>
